@@ -1,0 +1,407 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,mathtools,bm}
+
+\newcommand{\Exp}{\operatorname{Exp}}
+\newcommand{\SO}{\mathrm{SO}}
+\newcommand{\Ad}{\mathbf{Ad}}
+\newcommand{\R}{\mathbb{R}}
+
+\title{Exercise 1: Jacobian of $R^{-1}p$}
+\author{}
+\date{}
+
+\begin{document}
+\section*{Problem}
+Let
+\[
+R\in\SO(3),\qquad p\in\R^3.
+\]
+Calculate
+\[
+\boxed{\frac{\partial(R^{-1}p)}{\partial R}}
+\]
+using both right and left perturbation models.
+\section{Right perturbation}
+
+Use
+\[
+R'=R\Exp(\delta\theta).
+\]
+
+\subsection{Method 1: Chain rule}
+
+Consider
+\[
+R\longmapsto R^{-1}\longmapsto R^{-1}p.
+\]
+Then
+\[
+{}^{R}J_R^{R^{-1}p}
+=
+{}^{R^{-1}}J_{R^{-1}}^{R^{-1}p}{}^{R}J_R^{R^{-1}}.
+\]
+
+For $S\in\SO(3)$, the right-perturbation Jacobian of $Sp$ is
+\[
+{}^{S}J_S^{Sp}=-Sp^\wedge.
+\]
+Setting $S=R^{-1}$,
+\[
+{}^{R^{-1}}J_{R^{-1}}^{R^{-1}p}=-R^{-1}p^\wedge.
+\]
+
+For inversion under a right perturbation,
+\[
+{}^{R}J_R^{R^{-1}}=-\Ad_R=-R.
+\]
+
+Therefore
+\[
+{}^{R}J_R^{R^{-1}p}
+=(-R^{-1}p^\wedge)(-R)
+=R^{-1}p^\wedge R.
+\]
+
+Using
+\[
+(Ra)^\wedge=Ra^\wedge R^T,
+\]
+with $R^{-1}$ in place of $R$,
+\[
+R^{-1}p^\wedge R=(R^{-1}p)^\wedge.
+\]
+
+Hence
+\[
+\boxed{
+{}^{R}J_R^{R^{-1}p}=(R^{-1}p)^\wedge
+\qquad\text{(right perturbation)}.
+}
+\]
+
+\subsection{Method 2: Directly from the definition}
+
+Choose an arbitrary $u\in\R^3$ and let the perturbation be $hu$.
+Then
+\[
+{}^{R}J_R^{R^{-1}p}u
+=
+\lim_{h\to0}
+\frac{
+(R\Exp(hu))^{-1}p-R^{-1}p
+}{h}.
+\]
+
+Since
+\[
+(R\Exp(hu))^{-1}
+=
+\Exp(-hu)R^{-1},
+\]
+we obtain
+\[
+{}^{R}J_R^{R^{-1}p}u
+=
+\lim_{h\to0}
+\frac{
+\Exp(-hu)R^{-1}p-R^{-1}p
+}{h}.
+\]
+
+Using
+\[
+\Exp(-hu)=I-hu^\wedge+O(h^2),
+\]
+\[
+{}^{R}J_R^{R^{-1}p}u
+=
+\lim_{h\to0}
+\frac{
+-hu^\wedge R^{-1}p+O(h^2)
+}{h}.
+\]
+
+Since
+\[
+a^\wedge b=-b^\wedge a,
+\]
+\[
+-u^\wedge R^{-1}p=(R^{-1}p)^\wedge u.
+\]
+
+Thus
+\[
+{}^{R}J_R^{R^{-1}p}u=(R^{-1}p)^\wedge u.
+\]
+
+Because $u$ is arbitrary,
+\[
+\boxed{
+{}^{R}J_R^{R^{-1}p}=(R^{-1}p)^\wedge.
+}
+\]
+\section{Left perturbation}
+
+Use the left-plus convention
+\[
+R'=\Exp(\delta\theta)R.
+\]
+
+\subsection{Method 1: From equation (57)}
+
+The left-perturbation result can also be obtained directly from the
+right-perturbation Jacobian by using equation (57) of the paper:
+\[
+\boxed{
+{}^{\varepsilon}\frac{Df(X)}{DX}
+=
+\mathbf{Ad}_{f(X)}
+\;
+{}^{X}\frac{Df(X)}{DX}
+\;
+\mathbf{Ad}_{X}^{-1}.
+}
+\tag{57}
+\]
+
+For the present exercise,
+\[
+f(R)=R^{-1}p.
+\]
+
+The right-perturbation Jacobian has already been found to be
+\[
+\boxed{
+{}^{R}J_R^{R^{-1}p}
+=
+(R^{-1}p)^\wedge.
+}
+\tag{11}
+\]
+
+Applying (57) gives
+\[
+{}^{\varepsilon}J_R^{R^{-1}p}
+=
+\mathbf{Ad}_{R^{-1}p}
+\;
+{}^{R}J_R^{R^{-1}p}
+\;
+\mathbf{Ad}_{R}^{-1}.
+\tag{12}
+\]
+
+The output
+\[
+R^{-1}p\in\mathbb{R}^3
+\]
+belongs to the additive translation group $(\mathbb{R}^3,+)$.  This
+group is commutative, and its adjoint matrix is the identity:
+\[
+\boxed{
+\mathbf{Ad}_{R^{-1}p}=I.
+}
+\tag{13}
+\]
+
+For $\SO(3)$,
+\[
+\boxed{
+\mathbf{Ad}_{R}=R,
+\qquad
+\mathbf{Ad}_{R}^{-1}=R^{-1}.
+}
+\tag{14}
+\]
+
+Substituting (11)--(14) into (12),
+\begin{align}
+{}^{\varepsilon}J_R^{R^{-1}p}
+&=
+I\,(R^{-1}p)^\wedge R^{-1}
+\\
+&=
+(R^{-1}p)^\wedge R^{-1}.
+\end{align}
+
+Using
+\[
+(R^{-1}p)^\wedge
+=
+R^{-1}p^\wedge R,
+\]
+we obtain
+\begin{align}
+{}^{\varepsilon}J_R^{R^{-1}p}
+&=
+R^{-1}p^\wedge RR^{-1}
+\\
+&=
+\boxed{
+R^{-1}p^\wedge.
+}
+\end{align}
+
+Thus equation (57) converts the right-perturbation result directly into
+the left-perturbation result:
+\[
+\boxed{
+{}^{R}J_R^{R^{-1}p}
+=
+(R^{-1}p)^\wedge
+\quad\Longrightarrow\quad
+{}^{\varepsilon}J_R^{R^{-1}p}
+=
+R^{-1}p^\wedge.
+}
+\]
+
+This agrees with the result obtained independently from the direct
+left-perturbation limit.
+\subsection{Method 2: Directly from the definition}
+
+
+To make the Jacobian limit rigorous, choose an arbitrary direction
+\[
+u\in\R^3
+\]
+and set
+\[
+\delta\theta=hu.
+\]
+
+Then
+\[
+{}^{\varepsilon}J_R^{R^{-1}p}u
+=
+\lim_{h\to0}
+\frac{
+(\Exp(hu)R)^{-1}p-R^{-1}p
+}{h}.
+\]
+
+Using
+\[
+(AB)^{-1}=B^{-1}A^{-1},
+\]
+we have
+\[
+(\Exp(hu)R)^{-1}
+=
+R^{-1}\Exp(-hu).
+\]
+
+Therefore
+\[
+{}^{\varepsilon}J_R^{R^{-1}p}u
+=
+\lim_{h\to0}
+\frac{
+R^{-1}\Exp(-hu)p-R^{-1}p
+}{h}.
+\]
+
+For small $h$,
+\[
+\Exp(-hu)=I-hu^\wedge+O(h^2).
+\]
+
+Hence
+\begin{align}
+{}^{\varepsilon}J_R^{R^{-1}p}u
+&=
+\lim_{h\to0}
+\frac{
+R^{-1}(I-hu^\wedge)p-R^{-1}p+O(h^2)
+}{h}
+\\
+&=
+\lim_{h\to0}
+\frac{
+-hR^{-1}u^\wedge p+O(h^2)
+}{h}.
+\end{align}
+
+Using
+\[
+u^\wedge p=-p^\wedge u,
+\]
+we get
+\[
+-R^{-1}u^\wedge p
+=
+R^{-1}p^\wedge u.
+\]
+
+Therefore
+\[
+{}^{\varepsilon}J_R^{R^{-1}p}u
+=
+R^{-1}p^\wedge u.
+\]
+
+Since $u$ is arbitrary,
+\[
+\boxed{
+{}^{\varepsilon}J_R^{R^{-1}p}
+=
+R^{-1}p^\wedge.
+}
+\]
+\section{Final comparison}
+
+For the right perturbation
+\[
+R'=R\Exp(\delta\theta_R),
+\]
+\[
+\boxed{
+\frac{\partial(R^{-1}p)}{\partial R}
+=
+(R^{-1}p)^\wedge.
+}
+\]
+
+For the left perturbation
+\[
+R'=\Exp(\delta\theta_L)R,
+\]
+\[
+\boxed{
+\frac{\partial(R^{-1}p)}{\partial R}
+=
+R^{-1}p^\wedge.
+}
+\]
+
+These two Jacobians are related by
+\[
+(R^{-1}p)^\wedge
+=
+R^{-1}p^\wedge R,
+\]
+and the perturbation coordinates satisfy
+\[
+\delta\theta_L=R\,\delta\theta_R.
+\]
+
+Indeed,
+\[
+R^{-1}p^\wedge\delta\theta_L
+=
+R^{-1}p^\wedge R\,\delta\theta_R
+=
+(R^{-1}p)^\wedge\delta\theta_R.
+\]
+
+Thus the two perturbation conventions describe the same first-order
+variation using different tangent-coordinate representations.
+\section*{Useful identity}
+
+For $R\in\SO(3)$ and $a\in\R^3$,
+\[
+\boxed{(Ra)^\wedge=Ra^\wedge R^T.}
+\]
+
+\end{document}

@@ -3,8 +3,11 @@ FROM osrf/ros:noetic-desktop-full
 ADD docker/sources.list /etc/apt
 
 RUN apt-get update \
-&& apt-get install -y ros-noetic-pcl-ros ros-noetic-velodyne-msgs libopencv-dev libgoogle-glog-dev libeigen3-dev libsuitesparse-dev libpcl-dev libyaml-cpp-dev libbtbb-dev libgmock-dev unzip python3-tk\
+&& apt-get install -y ros-noetic-pcl-ros ros-noetic-velodyne-msgs libopencv-dev libgoogle-glog-dev libeigen3-dev libsuitesparse-dev libpcl-dev libyaml-cpp-dev libbtbb-dev libgmock-dev unzip python3-tk mesa-utils \
 && mkdir /sad
+
+ENV __GLX_VENDOR_LIBRARY_NAME=nvidia
+ENV __NV_PRIME_RENDER_OFFLOAD=1
 
 COPY ./thirdparty/ /sad/
 

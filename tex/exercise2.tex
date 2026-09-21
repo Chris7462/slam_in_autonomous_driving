@@ -1,0 +1,410 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,mathtools,bm}
+
+\newcommand{\Exp}{\operatorname{Exp}}
+\newcommand{\Log}{\operatorname{Log}}
+\newcommand{\SO}{\mathrm{SO}}
+\newcommand{\Ad}{\mathbf{Ad}}
+\newcommand{\R}{\mathbb{R}}
+
+
+\begin{document}
+
+\section*{Problem}
+
+Let
+\[
+R_1,R_2\in\SO(3).
+\]
+Calculate
+\[
+\boxed{
+\frac{\partial(R_1R_2^{-1})}{\partial R_2}
+}
+\]
+using both left and right perturbation models.
+
+This note first derives the result for the \emph{right perturbation model}.
+The left-perturbation derivation will be added separately.
+
+\section{Right perturbation}
+
+\subsection{Method 1: Directly from the definition}
+
+Use the right-plus convention
+\[
+R_2' = R_2\Exp(\delta\theta),
+\qquad
+\delta\theta\in\R^3.
+\]
+
+Define
+\[
+Y(R_2)=R_1R_2^{-1}.
+\]
+
+Since the output $Y\in\SO(3)$ is also a Lie-group element, its
+difference is measured with the right-minus operator
+\[
+Y'\ominus Y=\Log(Y^{-1}Y').
+\]
+
+To write the Jacobian limit rigorously, choose an arbitrary direction
+\[
+u\in\R^3
+\]
+and set
+\[
+\delta\theta=hu,
+\qquad h\to0.
+\]
+
+The right Jacobian is therefore defined by
+\[
+\boxed{
+{}^{R_2}J_{R_2}^{R_1R_2^{-1}}u
+=
+\lim_{h\to0}
+\frac{
+Y(R_2\Exp(hu))\ominus Y(R_2)
+}{h}.
+}
+\tag{1}
+\]
+
+Substituting
+\[
+Y(R_2)=R_1R_2^{-1},
+\]
+gives
+\[
+{}^{R_2}J_{R_2}^{R_1R_2^{-1}}u
+=
+\lim_{h\to0}
+\frac{
+\Log\!\left[
+(R_1R_2^{-1})^{-1}
+R_1(R_2\Exp(hu))^{-1}
+\right]
+}{h}.
+\tag{2}
+\]
+
+Using
+\[
+(R_1R_2^{-1})^{-1}=R_2R_1^{-1}
+\]
+and
+\[
+(R_2\Exp(hu))^{-1}
+=
+\Exp(-hu)R_2^{-1},
+\]
+the argument of the logarithm becomes
+\begin{align}
+&(R_1R_2^{-1})^{-1}
+R_1(R_2\Exp(hu))^{-1}
+\\
+&=
+R_2R_1^{-1}
+R_1
+\Exp(-hu)R_2^{-1}
+\\
+&=
+R_2\Exp(-hu)R_2^{-1}.
+\end{align}
+
+Hence
+\[
+{}^{R_2}J_{R_2}^{R_1R_2^{-1}}u
+=
+\lim_{h\to0}
+\frac{
+\Log\!\left(
+R_2\Exp(-hu)R_2^{-1}
+\right)
+}{h}.
+\tag{3}
+\]
+
+Now use the conjugation identity
+\[
+\boxed{
+R\Exp(a)R^{-1}
+=
+\Exp(\Ad_R a).
+}
+\tag{4}
+\]
+
+Therefore
+\[
+R_2\Exp(-hu)R_2^{-1}
+=
+\Exp\!\left(-h\Ad_{R_2}u\right).
+\]
+
+Substituting into (3),
+\[
+{}^{R_2}J_{R_2}^{R_1R_2^{-1}}u
+=
+\lim_{h\to0}
+\frac{
+\Log\!\left[
+\Exp(-h\Ad_{R_2}u)
+\right]
+}{h}.
+\]
+
+Near the identity,
+\[
+\Log(\Exp(v))=v,
+\]
+so
+\[
+{}^{R_2}J_{R_2}^{R_1R_2^{-1}}u
+=
+-\Ad_{R_2}u.
+\]
+
+Since $u$ is arbitrary,
+\[
+\boxed{
+{}^{R_2}J_{R_2}^{R_1R_2^{-1}}
+=
+-\Ad_{R_2}.
+}
+\tag{5}
+\]
+
+For $\SO(3)$,
+\[
+\Ad_R=R.
+\]
+
+Therefore the final right-perturbation result is
+\[
+\boxed{
+{}^{R_2}J_{R_2}^{R_1R_2^{-1}}
+=
+-R_2.
+}
+\tag{6}
+\]
+
+
+\section{Left perturbation}
+
+Use the left-plus convention
+\[
+R_2'=\Exp(\delta\theta)R_2.
+\]
+
+\subsection{Method 1: From equation (57)}
+
+From the right-perturbation result,
+\[
+\boxed{
+{}^{R_2}J_{R_2}^{R_1R_2^{-1}}
+=
+-R_2.
+}
+\]
+
+Equation (57) converts a right Jacobian into the corresponding left
+Jacobian:
+\[
+\boxed{
+{}^{\varepsilon}J_X^{f(X)}
+=
+\Ad_{f(X)}
+\;{}^{X}J_X^{f(X)}
+\;\Ad_X^{-1}.
+}
+\tag{57}
+\]
+
+For
+\[
+f(R_2)=R_1R_2^{-1},
+\]
+this gives
+\[
+{}^{\varepsilon}J_{R_2}^{R_1R_2^{-1}}
+=
+\Ad_{R_1R_2^{-1}}
+\left(-R_2\right)
+\Ad_{R_2}^{-1}.
+\]
+
+For $\SO(3)$,
+\[
+\Ad_R=R,
+\qquad
+\Ad_R^{-1}=R^{-1}.
+\]
+
+Therefore
+\begin{align}
+{}^{\varepsilon}J_{R_2}^{R_1R_2^{-1}}
+&=
+(R_1R_2^{-1})(-R_2)R_2^{-1}
+\\
+&=
+\boxed{-R_1R_2^{-1}}.
+\end{align}
+
+\subsection{Method 2: Directly from the definition}
+
+Choose an arbitrary direction
+\[
+u\in\R^3
+\]
+and let
+\[
+\delta\theta=hu,
+\qquad h\to0.
+\]
+
+Define
+\[
+Y=R_1R_2^{-1}.
+\]
+
+Under the left perturbation,
+\[
+R_2'=\Exp(hu)R_2.
+\]
+
+Hence
+\[
+Y'
+=
+R_1(R_2')^{-1}
+=
+R_1(\Exp(hu)R_2)^{-1}.
+\]
+
+Using
+\[
+(AB)^{-1}=B^{-1}A^{-1},
+\]
+we obtain
+\[
+(\Exp(hu)R_2)^{-1}
+=
+R_2^{-1}\Exp(-hu),
+\]
+so
+\[
+\boxed{
+Y'
+=
+R_1R_2^{-1}\Exp(-hu)
+=
+Y\Exp(-hu).
+}
+\]
+
+Because the output perturbation is left/global, use the left-minus
+operator:
+\[
+Y'\ominus_LY
+=
+\Log(Y'Y^{-1}).
+\]
+
+Therefore
+\begin{align}
+{}^{\varepsilon}J_{R_2}^{R_1R_2^{-1}}u
+&=
+\lim_{h\to0}
+\frac{
+\Log(Y'Y^{-1})
+}{h}
+\\
+&=
+\lim_{h\to0}
+\frac{
+\Log\!\left(
+Y\Exp(-hu)Y^{-1}
+\right)
+}{h}.
+\end{align}
+
+Using the conjugation identity
+\[
+Y\Exp(v)Y^{-1}
+=
+\Exp(\Ad_Yv),
+\]
+we have
+\[
+Y\Exp(-hu)Y^{-1}
+=
+\Exp(-h\Ad_Yu).
+\]
+
+Thus
+\begin{align}
+{}^{\varepsilon}J_{R_2}^{R_1R_2^{-1}}u
+&=
+\lim_{h\to0}
+\frac{
+\Log\!\left(
+\Exp(-h\Ad_Yu)
+\right)
+}{h}
+\\
+&=
+-\Ad_Yu.
+\end{align}
+
+Since $u$ is arbitrary,
+\[
+{}^{\varepsilon}J_{R_2}^{R_1R_2^{-1}}
+=
+-\Ad_Y.
+\]
+
+Finally, because
+\[
+Y=R_1R_2^{-1}
+\]
+and $\Ad_Y=Y$ for $\SO(3)$,
+\[
+\boxed{
+{}^{\varepsilon}J_{R_2}^{R_1R_2^{-1}}
+=
+-R_1R_2^{-1}.
+}
+\]
+
+\section*{Final comparison}
+
+For the right perturbation
+\[
+R_2'=R_2\Exp(\delta\theta_R),
+\]
+\[
+\boxed{
+{}^{R_2}J_{R_2}^{R_1R_2^{-1}}
+=
+-R_2.
+}
+\]
+
+For the left perturbation
+\[
+R_2'=\Exp(\delta\theta_L)R_2,
+\]
+\[
+\boxed{
+{}^{\varepsilon}J_{R_2}^{R_1R_2^{-1}}
+=
+-R_1R_2^{-1}.
+}
+\]
+
+\end{document}
