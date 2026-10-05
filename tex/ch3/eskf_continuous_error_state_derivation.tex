@@ -1,0 +1,577 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,mathtools,bm}
+
+\newcommand{\Exp}{\operatorname{Exp}}
+\newcommand{\SO}{\mathrm{SO}}
+\newcommand{\R}{\mathbb{R}}
+
+\begin{document}
+
+\section{Continuous-Time ESKF Error-State Derivation}
+
+\subsection{Nominal state and IMU motion model}
+
+Define the nominal state
+\[
+x=
+\begin{bmatrix}
+p & v & R & b_g & b_a & g
+\end{bmatrix}^{T}.
+\]
+
+The continuous-time IMU motion equations are
+\begin{align}
+\dot p &= v,\\
+\dot v &= R(\tilde a-b_a-\eta_a)+g,\\
+\dot R &= R(\tilde\omega-b_g-\eta_g)^\wedge,\\
+\dot b_g &= \eta_{bg},\\
+\dot b_a &= \eta_{ba},\\
+\dot g &= 0.
+\end{align}
+
+The IMU measurement equations may be written as
+\begin{align}
+\tilde a &= R^T(a-g)+b_a+\eta_a,\\
+\tilde\omega &= \omega+b_g+\eta_g,
+\end{align}
+together with
+\[
+\dot R=R\omega^\wedge.
+\]
+
+For the nominal state, the kinematic equations have the same form but
+ignore the measurement-noise terms:
+\begin{align}
+\dot p &= v,\\
+\dot v &= R(\tilde a-b_a)+g,\\
+\dot R &= R(\tilde\omega-b_g)^\wedge,\\
+\dot b_g &= 0,\\
+\dot b_a &= 0,\\
+\dot g &= 0.
+\end{align}
+
+\subsection{True state}
+
+Define the true state as
+\[
+x_t=
+\begin{bmatrix}
+p_t & v_t & R_t & b_{at} & b_{gt} & g_t
+\end{bmatrix}^{T}.
+\]
+
+Its continuous-time dynamics are
+\begin{align}
+\dot p_t &= v_t,\\
+\dot v_t &= R_t(\tilde a-b_{at}-\eta_a)+g_t,\\
+\dot R_t &= R_t(\tilde\omega-b_{gt}-\eta_g)^\wedge,\\
+\dot b_{gt} &= \eta_{bg},\\
+\dot b_{at} &= \eta_{ba},\\
+\dot g_t &= 0.
+\end{align}
+
+\subsection{Definition of the error state}
+
+Use a right-multiplicative rotation error:
+\begin{align}
+p_t &= p+\delta p,\\
+v_t &= v+\delta v,\\
+R_t &= R\,\delta R
+    =R\Exp(\delta\theta),\\
+b_{gt} &= b_g+\delta b_g,\\
+b_{at} &= b_a+\delta b_a,\\
+g_t &= g+\delta g.
+\end{align}
+
+The quantities without the subscript $t$ are nominal-state variables.
+The goal is to derive the continuous-time dynamics of
+\[
+\delta x=
+\begin{bmatrix}
+\delta p &
+\delta v &
+\delta\theta &
+\delta b_g &
+\delta b_a &
+\delta g
+\end{bmatrix}^{T}.
+\]
+
+\subsection{Position error}
+
+Starting from
+\[
+p_t=p+\delta p,
+\]
+differentiate with respect to time:
+\[
+\dot p_t=\dot p+\delta\dot p.
+\]
+
+Since
+\[
+\dot p_t=v_t=v+\delta v
+\]
+and
+\[
+\dot p=v,
+\]
+we obtain
+\[
+v+\delta v=v+\delta\dot p.
+\]
+
+Therefore
+\[
+\boxed{
+\delta\dot p=\delta v.
+}
+\]
+
+\subsection{Velocity error}
+
+Start from
+\[
+v_t=v+\delta v.
+\]
+
+Differentiating,
+\[
+\dot v_t=\dot v+\delta\dot v.
+\]
+
+Using the true-state equation,
+\[
+\dot v_t
+=
+R_t(\tilde a-b_{at}-\eta_a)+g_t.
+\]
+
+Substitute the error-state definitions:
+\[
+\dot v_t
+=
+R\Exp(\delta\theta)
+(\tilde a-b_a-\delta b_a-\eta_a)
++g+\delta g.
+\]
+
+For small $\delta\theta$,
+\[
+\Exp(\delta\theta)
+=
+I+\delta\theta^\wedge
++O(\|\delta\theta\|^2).
+\]
+
+Keeping only first-order error terms,
+\begin{align}
+\dot v_t
+&\approx
+R(I+\delta\theta^\wedge)
+(\tilde a-b_a-\delta b_a-\eta_a)
++g+\delta g\\
+&\approx
+R\tilde a-Rb_a-R\delta b_a-R\eta_a
++R\delta\theta^\wedge\tilde a
+-R\delta\theta^\wedge b_a
++g+\delta g.
+\end{align}
+
+Terms such as
+\[
+\delta\theta^\wedge\delta b_a,
+\qquad
+\delta\theta^\wedge\eta_a
+\]
+are neglected as higher-order terms in this first-order error-state
+linearization.
+
+Using
+\[
+a^\wedge b=-b^\wedge a,
+\]
+we have
+\[
+\delta\theta^\wedge\tilde a
+=
+-\tilde a^\wedge\delta\theta,
+\qquad
+-\delta\theta^\wedge b_a
+=
+b_a^\wedge\delta\theta.
+\]
+
+Hence
+\[
+\dot v_t
+\approx
+R(\tilde a-b_a)+g
+-R(\tilde a-b_a)^\wedge\delta\theta
+-R\delta b_a
+-R\eta_a
++\delta g.
+\]
+
+On the other hand, the nominal equation gives
+\[
+\dot v+\delta\dot v
+=
+R(\tilde a-b_a)+g+\delta\dot v.
+\]
+
+Comparing the two expressions,
+\[
+\boxed{
+\delta\dot v
+=
+-R(\tilde a-b_a)^\wedge\delta\theta
+-R\delta b_a
+-R\eta_a
++\delta g.
+}
+\]
+
+\subsection{Rotation error}
+
+Start from
+\[
+R_t=R\Exp(\delta\theta).
+\]
+
+Differentiating,
+\[
+\dot R_t
+=
+\dot R\Exp(\delta\theta)
++
+R\frac{d}{dt}\Exp(\delta\theta).
+\]
+
+\subsubsection*{Exact derivative of the exponential map}
+
+For a general time-varying
+\[
+\delta\theta(t)\in\R^3,
+\]
+the exact derivative is
+\[
+\boxed{
+\frac{d}{dt}\Exp(\delta\theta)
+=
+\Exp(\delta\theta)
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge,
+}
+\]
+where $J_r(\delta\theta)$ is the right Jacobian of $\SO(3)$.
+
+This follows from
+\[
+\Exp(\delta\theta+\delta\dot\theta\,dt)
+\approx
+\Exp(\delta\theta)
+\Exp\!\left(
+J_r(\delta\theta)\delta\dot\theta\,dt
+\right).
+\]
+
+Since
+\[
+J_r(\delta\theta)
+=
+I-\frac12\delta\theta^\wedge
++O(\|\delta\theta\|^2),
+\]
+the first-order ESKF approximation is
+\[
+J_r(\delta\theta)\delta\dot\theta
+\approx
+\delta\dot\theta.
+\]
+
+Therefore, within the first-order error-state derivation,
+\[
+\boxed{
+\frac{d}{dt}\Exp(\delta\theta)
+\approx
+\Exp(\delta\theta)\delta\dot\theta^\wedge.
+}
+\]
+
+Using this first-order approximation,
+\[
+\dot R_t
+\approx
+\dot R\Exp(\delta\theta)
++
+R\Exp(\delta\theta)\delta\dot\theta^\wedge.
+\]
+
+The nominal rotation dynamics are
+\[
+\dot R
+=
+R(\tilde\omega-b_g)^\wedge.
+\]
+
+Hence
+\[
+\dot R_t
+\approx
+R(\tilde\omega-b_g)^\wedge\Exp(\delta\theta)
++
+R\Exp(\delta\theta)\delta\dot\theta^\wedge.
+\]
+
+The true rotation dynamics are
+\[
+\dot R_t
+=
+R_t(\tilde\omega-b_{gt}-\eta_g)^\wedge
+=
+R\Exp(\delta\theta)
+(\tilde\omega-b_{gt}-\eta_g)^\wedge.
+\]
+
+Equating both expressions and canceling $R$ gives
+\begin{align}
+\Exp(\delta\theta)\delta\dot\theta^\wedge
+&=
+\Exp(\delta\theta)
+(\tilde\omega-b_{gt}-\eta_g)^\wedge\\
+&\quad
+-(\tilde\omega-b_g)^\wedge
+\Exp(\delta\theta).
+\end{align}
+
+Use the $\SO(3)$ identity
+\[
+\phi^\wedge R
+=
+R(R^T\phi)^\wedge.
+\]
+
+With
+\[
+R=\Exp(\delta\theta),
+\]
+this gives
+\[
+(\tilde\omega-b_g)^\wedge\Exp(\delta\theta)
+=
+\Exp(\delta\theta)
+\left(
+\Exp(-\delta\theta)(\tilde\omega-b_g)
+\right)^\wedge.
+\]
+
+Therefore
+\begin{align}
+\Exp(\delta\theta)\delta\dot\theta^\wedge
+&=
+\Exp(\delta\theta)
+\Big[
+(\tilde\omega-b_{gt}-\eta_g)^\wedge\\
+&\qquad
+-\left(
+\Exp(-\delta\theta)(\tilde\omega-b_g)
+\right)^\wedge
+\Big].
+\end{align}
+
+For small $\delta\theta$,
+\[
+\Exp(-\delta\theta)
+\approx
+I-\delta\theta^\wedge.
+\]
+
+Thus
+\begin{align}
+&(\tilde\omega-b_{gt}-\eta_g)
+-\Exp(-\delta\theta)(\tilde\omega-b_g)\\
+&\approx
+(\tilde\omega-b_{gt}-\eta_g)
+-(I-\delta\theta^\wedge)(\tilde\omega-b_g)\\
+&=
+b_g-b_{gt}-\eta_g
++\delta\theta^\wedge\tilde\omega
+-\delta\theta^\wedge b_g.
+\end{align}
+
+Since
+\[
+b_{gt}=b_g+\delta b_g,
+\]
+we have
+\[
+b_g-b_{gt}=-\delta b_g.
+\]
+
+Also,
+\[
+\delta\theta^\wedge(\tilde\omega-b_g)
+=
+-(\tilde\omega-b_g)^\wedge\delta\theta.
+\]
+
+Therefore
+\[
+\delta\dot\theta
+=
+-(\tilde\omega-b_g)^\wedge\delta\theta
+-\delta b_g
+-\eta_g.
+\]
+
+Hence
+\[
+\boxed{
+\delta\dot\theta
+=
+-(\tilde\omega-b_g)^\wedge\delta\theta
+-\delta b_g
+-\eta_g.
+}
+\]
+
+\subsubsection*{Identity used above}
+
+For $R\in\SO(3)$,
+\[
+\operatorname{Ad}_R\phi
+=
+(R\phi^\wedge R^T)^\vee
+=
+R\phi.
+\]
+
+Thus
+\[
+R\phi^\wedge R^T=(R\phi)^\wedge.
+\]
+
+From this,
+\[
+\phi^\wedge R
+=
+R(R^T\phi)^\wedge.
+\]
+
+\subsection{Gyroscope-bias error}
+
+Starting from
+\[
+b_{gt}=b_g+\delta b_g,
+\]
+differentiate:
+\[
+\dot b_{gt}
+=
+\dot b_g+\delta\dot b_g.
+\]
+
+The true bias dynamics are
+\[
+\dot b_{gt}=\eta_{bg},
+\]
+while the nominal model ignores noise:
+\[
+\dot b_g=0.
+\]
+
+Therefore
+\[
+\boxed{
+\delta\dot b_g=\eta_{bg}.
+}
+\]
+
+\subsection{Accelerometer-bias error}
+
+Similarly,
+\[
+b_{at}=b_a+\delta b_a.
+\]
+
+Differentiating,
+\[
+\dot b_{at}
+=
+\dot b_a+\delta\dot b_a.
+\]
+
+Using
+\[
+\dot b_{at}=\eta_{ba},
+\qquad
+\dot b_a=0,
+\]
+we obtain
+\[
+\boxed{
+\delta\dot b_a=\eta_{ba}.
+}
+\]
+
+\subsection{Gravity error}
+
+Starting from
+\[
+g_t=g+\delta g,
+\]
+differentiate:
+\[
+\dot g_t=\dot g+\delta\dot g.
+\]
+
+Since
+\[
+\dot g_t=0,
+\qquad
+\dot g=0,
+\]
+we obtain
+\[
+\boxed{
+\delta\dot g=0.
+}
+\]
+
+\section{Final continuous-time error-state equations}
+
+Collecting the results,
+\[
+\boxed{
+\begin{aligned}
+\delta\dot p
+&=
+\delta v,\\[1mm]
+\delta\dot v
+&=
+-R(\tilde a-b_a)^\wedge\delta\theta
+-R\delta b_a
+-R\eta_a
++\delta g,\\[1mm]
+\delta\dot\theta
+&=
+-(\tilde\omega-b_g)^\wedge\delta\theta
+-\delta b_g
+-\eta_g,\\[1mm]
+\delta\dot b_g
+&=
+\eta_{bg},\\[1mm]
+\delta\dot b_a
+&=
+\eta_{ba},\\[1mm]
+\delta\dot g
+&=
+0.
+\end{aligned}
+}
+\]
+
+\end{document}
