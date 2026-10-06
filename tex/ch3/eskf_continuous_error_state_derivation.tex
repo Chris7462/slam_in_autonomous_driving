@@ -1,8 +1,10 @@
 \documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,mathtools,bm}
+\numberwithin{equation}{section}
 
 \newcommand{\Exp}{\operatorname{Exp}}
+\newcommand{\Log}{\operatorname{Log}}
 \newcommand{\SO}{\mathrm{SO}}
 \newcommand{\R}{\mathbb{R}}
 
@@ -123,11 +125,11 @@ v+\delta v=v+\delta\dot p.
 \]
 
 Therefore
-\[
+\begin{equation}
 \boxed{
 \delta\dot p=\delta v.
 }
-\]
+\end{equation}
 
 \subsection{Velocity error}
 
@@ -222,16 +224,29 @@ R(\tilde a-b_a)+g+\delta\dot v.
 \]
 
 Comparing the two expressions,
-\[
+\begin{equation}
 \boxed{
 \delta\dot v
 =
 -R(\tilde a-b_a)^\wedge\delta\theta
 -R\delta b_a
--R\eta_a
+-\eta_a
 +\delta g.
 }
+\end{equation}
+
+Here we use the standard ESKF noise assumption adopted in the text:
+multiplying the zero-mean white accelerometer noise by a rotation does
+not change its distribution. Thus, in distribution,
+\[
+R\eta_a \sim \eta_a,
 \]
+and the rotated noise term is written simply as
+\[
+R\eta_a \;\Rightarrow\; \eta_a.
+\]
+This is a distributional simplification rather than a pointwise identity
+between individual noise samples.
 
 \subsection{Rotation error}
 
@@ -256,7 +271,7 @@ For a general time-varying
 \delta\theta(t)\in\R^3,
 \]
 the exact derivative is
-\[
+\begin{equation}
 \boxed{
 \frac{d}{dt}\Exp(\delta\theta)
 =
@@ -265,10 +280,144 @@ the exact derivative is
 J_r(\delta\theta)\delta\dot\theta
 \right)^\wedge,
 }
-\]
+\end{equation}
 where $J_r(\delta\theta)$ is the right Jacobian of $\SO(3)$.
 
-This follows from
+The formula above can be seen directly from the limit definition of the
+right Jacobian.
+
+Define
+\[
+Q(t)=\Exp(\delta\theta(t)).
+\]
+
+The right/local tangent velocity of $Q(t)$ is
+\[
+\omega_{\mathrm{local}}
+=
+\lim_{h\to0}
+\frac{
+\Log\!\left(
+Q(t)^{-1}Q(t+h)
+\right)
+}{h}.
+\]
+
+Since
+\[
+Q(t)^{-1}
+=
+\Exp(-\delta\theta(t))
+\]
+and
+\[
+Q(t+h)
+=
+\Exp(\delta\theta(t+h)),
+\]
+we have
+\[
+\omega_{\mathrm{local}}
+=
+\lim_{h\to0}
+\frac{
+\Log\!\left[
+\Exp(-\delta\theta(t))
+\Exp(\delta\theta(t+h))
+\right]
+}{h}.
+\]
+
+Using the ordinary first-order expansion
+\[
+\delta\theta(t+h)
+=
+\delta\theta(t)
++
+h\,\delta\dot\theta(t)
++
+O(h^2),
+\]
+this becomes
+\[
+\omega_{\mathrm{local}}
+=
+\lim_{h\to0}
+\frac{
+\Log\!\left[
+\Exp(-\delta\theta)
+\Exp\!\left(
+\delta\theta+h\,\delta\dot\theta
+\right)
+\right]
+}{h}.
+\]
+
+Now compare this with the directional-limit definition of the right
+Jacobian:
+\begin{equation}
+\boxed{
+J_r(\phi)u
+=
+\lim_{h\to0}
+\frac{
+\Log\!\left[
+\Exp(-\phi)
+\Exp(\phi+hu)
+\right]
+}{h}.
+}
+\end{equation}
+
+By identifying
+\[
+\phi=\delta\theta,
+\qquad
+u=\delta\dot\theta,
+\]
+we obtain
+\begin{equation}
+\boxed{
+\omega_{\mathrm{local}}
+=
+J_r(\delta\theta)\delta\dot\theta.
+}
+\end{equation}
+
+Since a right/local tangent velocity satisfies
+\[
+\dot Q
+=
+Q\,\omega_{\mathrm{local}}^\wedge,
+\]
+we get
+\[
+\dot Q
+=
+Q
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge.
+\]
+
+Substituting
+\[
+Q=\Exp(\delta\theta)
+\]
+gives the exact relation
+\begin{equation}
+\boxed{
+\frac{d}{dt}\Exp(\delta\theta)
+=
+\Exp(\delta\theta)
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge.
+}
+\end{equation}
+
+Equivalently, this is the same relation as the compact right-Jacobian
+increment formula
 \[
 \Exp(\delta\theta+\delta\dot\theta\,dt)
 \approx
@@ -277,6 +426,196 @@ This follows from
 J_r(\delta\theta)\delta\dot\theta\,dt
 \right).
 \]
+
+To see why these two forms are equivalent, define
+\[
+Q(t)=\Exp(\delta\theta(t)).
+\]
+
+Starting from the differential form,
+\[
+\dot Q
+=
+Q
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge,
+\]
+the ordinary first-order Taylor expansion in time gives
+\[
+Q(t+dt)
+=
+Q(t)+\dot Q(t)\,dt+O(dt^2).
+\]
+
+Substituting the differential equation,
+\[
+Q(t+dt)
+=
+Q(t)
++
+Q(t)
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge dt
++
+O(dt^2).
+\]
+
+Factoring out $Q(t)$,
+\[
+Q(t+dt)
+=
+Q(t)
+\left[
+I+
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge dt
+\right]
++
+O(dt^2).
+\]
+
+For a small vector $\epsilon$,
+\[
+\Exp(\epsilon)
+=
+I+\epsilon^\wedge+O(\|\epsilon\|^2).
+\]
+
+Choose
+\[
+\epsilon
+=
+J_r(\delta\theta)\delta\dot\theta\,dt.
+\]
+
+Then
+\[
+\Exp\!\left(
+J_r(\delta\theta)\delta\dot\theta\,dt
+\right)
+=
+I+
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge dt
++
+O(dt^2).
+\]
+
+Therefore
+\[
+Q(t+dt)
+\approx
+Q(t)
+\Exp\!\left(
+J_r(\delta\theta)\delta\dot\theta\,dt
+\right).
+\]
+
+Since
+\[
+Q(t)=\Exp(\delta\theta(t))
+\]
+and
+\[
+\delta\theta(t+dt)
+=
+\delta\theta(t)
++
+\delta\dot\theta(t)\,dt
++
+O(dt^2),
+\]
+we obtain
+\begin{equation}
+\boxed{
+\Exp(\delta\theta+\delta\dot\theta\,dt)
+\approx
+\Exp(\delta\theta)
+\Exp\!\left(
+J_r(\delta\theta)\delta\dot\theta\,dt
+\right).
+}
+\end{equation}
+
+Conversely, start from the increment form:
+\[
+Q(t+dt)
+\approx
+Q(t)
+\Exp\!\left(
+J_r(\delta\theta)\delta\dot\theta\,dt
+\right).
+\]
+
+Using the small-angle expansion of the second exponential,
+\[
+Q(t+dt)
+=
+Q(t)
++
+Q(t)
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge dt
++
+O(dt^2).
+\]
+
+Hence
+\[
+\frac{Q(t+dt)-Q(t)}{dt}
+=
+Q(t)
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge
++
+O(dt).
+\]
+
+Taking the limit $dt\to0$ gives
+\begin{equation}
+\boxed{
+\dot Q
+=
+Q
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge.
+}
+\end{equation}
+
+Thus the increment form and the differential form describe the same
+local motion:
+\begin{equation}
+\boxed{
+\begin{array}{c}
+\Exp(\delta\theta+\delta\dot\theta\,dt)
+\approx
+\Exp(\delta\theta)
+\Exp\!\left(
+J_r(\delta\theta)\delta\dot\theta\,dt
+\right)
+\\[4mm]
+\Updownarrow\; dt\to0
+\\[4mm]
+\dfrac{d}{dt}\Exp(\delta\theta)
+=
+\Exp(\delta\theta)
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge.
+\end{array}
+}
+\end{equation}
+
+The upper expression is a first-order finite-increment relation, while
+the lower expression is the corresponding exact instantaneous
+differential relation.
 
 Since
 \[
@@ -293,13 +632,13 @@ J_r(\delta\theta)\delta\dot\theta
 \]
 
 Therefore, within the first-order error-state derivation,
-\[
+\begin{equation}
 \boxed{
 \frac{d}{dt}\Exp(\delta\theta)
 \approx
 \Exp(\delta\theta)\delta\dot\theta^\wedge.
 }
-\]
+\end{equation}
 
 Using this first-order approximation,
 \[
@@ -428,7 +767,7 @@ Therefore
 \]
 
 Hence
-\[
+\begin{equation}
 \boxed{
 \delta\dot\theta
 =
@@ -436,7 +775,7 @@ Hence
 -\delta b_g
 -\eta_g.
 }
-\]
+\end{equation}
 
 \subsubsection*{Identity used above}
 
@@ -461,6 +800,265 @@ From this,
 R(R^T\phi)^\wedge.
 \]
 
+\subsection{Supplement: From Finite Infinitesimal Increments to Instantaneous Velocity}
+
+This appendix clarifies how the right-Jacobian finite-increment relation
+is used to obtain the instantaneous right/local tangent velocity.
+
+Let
+\[
+Q(t)=\Exp(\delta\theta(t)).
+\]
+
+For a small time increment $dt$,
+\[
+\delta\theta(t+dt)
+=
+\delta\theta(t)
++
+\delta\dot\theta(t)\,dt
++
+O(dt^2),
+\]
+and therefore
+\[
+Q(t+dt)
+=
+\Exp(\delta\theta(t+dt))
+\approx
+\Exp(\delta\theta+\delta\dot\theta\,dt).
+\]
+
+The right-Jacobian increment relation is
+\begin{equation}
+\boxed{
+\Exp(\phi+\Delta\phi)
+\approx
+\Exp(\phi)
+\Exp\!\left(J_r(\phi)\Delta\phi\right).
+}
+\end{equation}
+
+Set
+\[
+\phi=\delta\theta,
+\qquad
+\Delta\phi=\delta\dot\theta\,dt.
+\]
+
+Then
+\begin{equation}
+\boxed{
+Q(t+dt)
+\approx
+Q(t)
+\Exp\!\left(
+J_r(\delta\theta)\delta\dot\theta\,dt
+\right).
+}
+\end{equation}
+
+Now define the instantaneous right/local tangent velocity
+$\omega_R$ by the infinitesimal motion
+\begin{equation}
+\boxed{
+Q(t+dt)
+\approx
+Q(t)\Exp(\omega_R\,dt).
+}
+\end{equation}
+
+Comparing the two infinitesimal expressions gives
+\begin{equation}
+\boxed{
+\omega_R
+=
+J_r(\delta\theta)\delta\dot\theta.
+}
+\end{equation}
+
+Thus $\delta\dot\theta$ is the time derivative of the exponential
+coordinates, whereas $J_r(\delta\theta)\delta\dot\theta$ is the
+corresponding right/local tangent velocity of the rotation matrix.
+
+To recover the ordinary matrix derivative, use
+\[
+\Exp(\omega_R\,dt)
+=
+I+\omega_R^\wedge dt+O(dt^2).
+\]
+
+Hence
+\[
+Q(t+dt)
+=
+Q(t)
++
+Q(t)\omega_R^\wedge dt
++
+O(dt^2),
+\]
+so
+\[
+\frac{Q(t+dt)-Q(t)}{dt}
+=
+Q(t)\omega_R^\wedge
++
+O(dt).
+\]
+
+Taking $dt\to0$,
+\begin{equation}
+\boxed{
+\dot Q
+=
+Q\omega_R^\wedge.
+}
+\end{equation}
+
+Substituting
+\[
+\omega_R
+=
+J_r(\delta\theta)\delta\dot\theta
+\]
+and
+\[
+Q=\Exp(\delta\theta)
+\]
+gives
+\begin{equation}
+\boxed{
+\frac{d}{dt}\Exp(\delta\theta)
+=
+\Exp(\delta\theta)
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge.
+}
+\end{equation}
+
+Therefore the finite infinitesimal increment and the instantaneous
+differential form are two descriptions of the same local motion:
+\begin{equation}
+\boxed{
+\begin{array}{c}
+Q(t+dt)
+\approx
+Q(t)\Exp\!\left(
+J_r(\delta\theta)\delta\dot\theta\,dt
+\right)
+\\[4mm]
+\Downarrow\quad dt\to0
+\\[4mm]
+\dot Q
+=
+Q
+\left(
+J_r(\delta\theta)\delta\dot\theta
+\right)^\wedge.
+\end{array}
+}
+\end{equation}
+
+\subsubsection*{Exact and small-angle forms of the right Jacobian}
+
+For $\phi\in\R^3$, let
+\[
+\vartheta=\|\phi\|.
+\]
+
+The exact right Jacobian of $\SO(3)$ is
+\begin{equation}
+\boxed{
+J_r(\phi)
+=
+I
+-
+\frac{1-\cos\vartheta}{\vartheta^2}\phi^\wedge
++
+\frac{\vartheta-\sin\vartheta}{\vartheta^3}
+(\phi^\wedge)^2.
+}
+\end{equation}
+
+The coefficient of the first-order term follows from
+\[
+\cos\vartheta
+=
+1-\frac{\vartheta^2}{2!}
++\frac{\vartheta^4}{4!}
+-\cdots,
+\]
+so
+\[
+\frac{1-\cos\vartheta}{\vartheta^2}
+=
+\frac12-\frac{\vartheta^2}{24}+\cdots.
+\]
+
+Similarly,
+\[
+\sin\vartheta
+=
+\vartheta-\frac{\vartheta^3}{3!}
++\frac{\vartheta^5}{5!}
+-\cdots,
+\]
+which gives
+\[
+\frac{\vartheta-\sin\vartheta}{\vartheta^3}
+=
+\frac16-\frac{\vartheta^2}{120}+\cdots.
+\]
+
+Therefore
+\[
+J_r(\phi)
+=
+I
+-\frac12\phi^\wedge
++\frac16(\phi^\wedge)^2
++O(\|\phi\|^3),
+\]
+and, retaining only first-order terms,
+\begin{equation}
+\boxed{
+J_r(\phi)
+=
+I-\frac12\phi^\wedge+O(\|\phi\|^2).
+}
+\end{equation}
+
+For the ESKF rotation error, $\phi=\delta\theta$ is small. Hence
+\[
+J_r(\delta\theta)\delta\dot\theta
+=
+\delta\dot\theta
+-\frac12
+\delta\theta^\wedge\delta\dot\theta
++\cdots.
+\]
+
+Under the first-order error-state approximation, the product involving
+$\delta\theta$ and $\delta\dot\theta$ is neglected, yielding
+\begin{equation}
+\boxed{
+J_r(\delta\theta)\delta\dot\theta
+\approx
+\delta\dot\theta.
+}
+\end{equation}
+
+This is why the ESKF derivation commonly uses
+\[
+\frac{d}{dt}\Exp(\delta\theta)
+\approx
+\Exp(\delta\theta)\delta\dot\theta^\wedge,
+\]
+even though the exact differential relation contains the right
+Jacobian.
+
 \subsection{Gyroscope-bias error}
 
 Starting from
@@ -484,11 +1082,11 @@ while the nominal model ignores noise:
 \]
 
 Therefore
-\[
+\begin{equation}
 \boxed{
 \delta\dot b_g=\eta_{bg}.
 }
-\]
+\end{equation}
 
 \subsection{Accelerometer-bias error}
 
@@ -511,11 +1109,11 @@ Using
 \dot b_a=0,
 \]
 we obtain
-\[
+\begin{equation}
 \boxed{
 \delta\dot b_a=\eta_{ba}.
 }
-\]
+\end{equation}
 
 \subsection{Gravity error}
 
@@ -535,16 +1133,16 @@ Since
 \dot g=0,
 \]
 we obtain
-\[
+\begin{equation}
 \boxed{
 \delta\dot g=0.
 }
-\]
+\end{equation}
 
 \section{Final continuous-time error-state equations}
 
 Collecting the results,
-\[
+\begin{equation}
 \boxed{
 \begin{aligned}
 \delta\dot p
@@ -554,7 +1152,7 @@ Collecting the results,
 &=
 -R(\tilde a-b_a)^\wedge\delta\theta
 -R\delta b_a
--R\eta_a
+-\eta_a
 +\delta g,\\[1mm]
 \delta\dot\theta
 &=
@@ -572,6 +1170,1427 @@ Collecting the results,
 0.
 \end{aligned}
 }
+\end{equation}
+
+
+
+\section{Discrete-Time ESKF Kinematic Equation}
+
+\subsection{Nominal-state position equation}
+
+For the nominal state,
+\[
+\dot p=v,
+\qquad
+\dot v=R(\tilde a-b_a)+g.
 \]
+
+Define the acceleration expressed in the world frame as
+\begin{equation}
+\boxed{
+a_W(t)=R(t)(\tilde a(t)-b_a(t))+g.
+}
+\end{equation}
+
+Since
+\[
+\dot p(\tau)=v(\tau),
+\]
+integrating from $t$ to $t+\Delta t$ gives
+\[
+p(t+\Delta t)
+=
+p(t)+\int_t^{t+\Delta t}v(\tau)\,d\tau.
+\]
+
+The velocity at an intermediate time $\tau$ is
+\[
+v(\tau)
+=
+v(t)+\int_t^\tau a_W(s)\,ds.
+\]
+
+Substituting this into the position integral,
+\[
+p(t+\Delta t)
+=
+p(t)+
+\int_t^{t+\Delta t}
+\left[
+v(t)+\int_t^\tau a_W(s)\,ds
+\right]d\tau.
+\]
+
+\subsubsection*{Assumption over one IMU sampling interval}
+
+To obtain the discrete-time equation used here, assume that the
+world-frame acceleration is approximately constant over the short IMU
+sampling interval:
+\begin{equation}
+\boxed{
+a_W(s)\approx a_W(t),
+\qquad
+s\in[t,t+\Delta t].
+}
+\end{equation}
+
+Equivalently, over this interval we use the values at the beginning of
+the interval,
+\[
+R(s)\approx R(t),
+\qquad
+\tilde a(s)\approx\tilde a(t),
+\qquad
+b_a(s)\approx b_a(t),
+\]
+with gravity $g$ treated as constant. Thus
+\[
+a_W(s)
+\approx
+R(t)(\tilde a(t)-b_a(t))+g.
+\]
+
+Under this approximation,
+\[
+\int_t^\tau a_W(s)\,ds
+\approx
+a_W(t)(\tau-t).
+\]
+
+Therefore
+\begin{align}
+p(t+\Delta t)
+&=
+p(t)+
+\int_t^{t+\Delta t}
+\left[
+v(t)+a_W(t)(\tau-t)
+\right]d\tau\\
+&=
+p(t)
++
+v(t)\Delta t
++
+a_W(t)
+\int_t^{t+\Delta t}(\tau-t)\,d\tau.
+\end{align}
+
+The remaining integral is
+\[
+\int_t^{t+\Delta t}(\tau-t)\,d\tau
+=
+\frac12\Delta t^2.
+\]
+
+Hence
+\[
+p(t+\Delta t)
+=
+p(t)+v(t)\Delta t
++\frac12a_W(t)\Delta t^2.
+\]
+
+Substituting the expression for $a_W(t)$,
+\[
+p(t+\Delta t)
+=
+p(t)+v(t)\Delta t
++
+\frac12
+\left[
+R(t)(\tilde a(t)-b_a(t))+g
+\right]
+\Delta t^2.
+\]
+
+Finally,
+\begin{equation}
+\boxed{
+p(t+\Delta t)
+=
+p(t)+v(t)\Delta t
++
+\frac12R(t)(\tilde a(t)-b_a(t))\Delta t^2
++
+\frac12g\Delta t^2.
+}
+\end{equation}
+
+This is the discrete-time nominal position propagation equation.  The
+appearance of $R(t)$ rather than $R(t+\Delta t)$ follows from the
+beginning-of-interval approximation above.  In the exact continuous
+motion, $R(s)$ and therefore $a_W(s)$ generally vary throughout the
+sampling interval.
+
+\subsection{Nominal-state velocity equation}
+
+Starting from
+\[
+\dot v
+=
+R(\tilde a-b_a)+g
+\equiv
+a_W,
+\]
+integrate over the interval $[t,t+\Delta t]$:
+\[
+v(t+\Delta t)
+=
+v(t)
++
+\int_t^{t+\Delta t}
+a_W(\tau)\,d\tau.
+\]
+
+Using the same assumption as in the position derivation,
+\[
+a_W(\tau)\approx a_W(t),
+\qquad
+\tau\in[t,t+\Delta t],
+\]
+we obtain
+\[
+v(t+\Delta t)
+\approx
+v(t)
++
+a_W(t)
+\int_t^{t+\Delta t}d\tau.
+\]
+
+Therefore
+\[
+v(t+\Delta t)
+=
+v(t)
++
+a_W(t)\Delta t.
+\]
+
+Substituting
+\[
+a_W(t)
+=
+R(t)(\tilde a(t)-b_a(t))+g,
+\]
+gives
+\begin{equation}
+\boxed{
+v(t+\Delta t)
+=
+v(t)
++
+R(t)(\tilde a(t)-b_a(t))\Delta t
++
+g\Delta t.
+}
+\end{equation}
+
+This is the discrete-time nominal velocity propagation equation.  As
+with the position equation, the approximation uses the beginning-of-
+interval values $R(t)$, $\tilde a(t)$, and $b_a(t)$ over one IMU
+sampling interval.
+
+
+\subsection{Nominal-state rotation equation}
+
+The continuous-time nominal rotation dynamics are
+\begin{equation}
+\boxed{
+\dot R(t)
+=
+R(t)(\tilde\omega(t)-b_g(t))^\wedge.
+}
+\end{equation}
+
+Define the bias-corrected body-frame angular velocity
+\[
+\omega_B(t)
+\equiv
+\tilde\omega(t)-b_g(t).
+\]
+
+Over one short IMU sampling interval, assume
+\begin{equation}
+\boxed{
+\omega_B(\tau)\approx\omega_B(t),
+\qquad
+\tau\in[t,t+\Delta t].
+}
+\end{equation}
+
+Equivalently,
+\[
+\tilde\omega(\tau)\approx\tilde\omega(t),
+\qquad
+b_g(\tau)\approx b_g(t)
+\]
+over this interval.  The differential equation therefore becomes
+\[
+\dot R(\tau)
+=
+R(\tau)\omega_B(t)^\wedge,
+\]
+where $\omega_B(t)^\wedge$ is constant with respect to $\tau$.
+
+The solution of this matrix differential equation with initial
+condition $R(t)$ is
+\[
+R(\tau)
+=
+R(t)
+\exp\!\left(
+\omega_B(t)^\wedge(\tau-t)
+\right),
+\]
+where $\exp(\cdot)$ denotes the matrix exponential.
+
+This can be verified directly:
+\begin{align}
+\frac{d}{d\tau}R(\tau)
+&=
+R(t)
+\frac{d}{d\tau}
+\exp\!\left(
+\omega_B(t)^\wedge(\tau-t)
+\right)
+\\
+&=
+R(t)
+\exp\!\left(
+\omega_B(t)^\wedge(\tau-t)
+\right)
+\omega_B(t)^\wedge
+\\
+&=
+R(\tau)\omega_B(t)^\wedge.
+\end{align}
+
+At $\tau=t+\Delta t$,
+\[
+R(t+\Delta t)
+=
+R(t)
+\exp\!\left(
+\omega_B(t)^\wedge\Delta t
+\right).
+\]
+
+Since
+\[
+\Exp(\phi)
+\equiv
+\exp(\phi^\wedge)
+\]
+and
+\[
+(\omega_B\Delta t)^\wedge
+=
+\omega_B^\wedge\Delta t,
+\]
+we obtain
+\[
+R(t+\Delta t)
+=
+R(t)
+\Exp\!\left(
+\omega_B(t)\Delta t
+\right).
+\]
+
+Substituting
+\[
+\omega_B(t)
+=
+\tilde\omega(t)-b_g(t),
+\]
+gives the discrete-time nominal rotation propagation equation
+\begin{equation}
+\boxed{
+R(t+\Delta t)
+=
+R(t)
+\Exp\!\left(
+(\tilde\omega(t)-b_g(t))\Delta t
+\right).
+}
+\end{equation}
+
+The exponential increment appears on the right because
+\[
+\dot R=R\omega_B^\wedge
+\]
+uses the body-frame (right-trivialized) angular velocity.  In contrast,
+if the angular velocity were expressed in the world frame so that
+\[
+\dot R=\omega_W^\wedge R,
+\]
+the corresponding constant-angular-velocity propagation would be
+\[
+R(t+\Delta t)
+=
+\Exp(\omega_W\Delta t)R(t).
+\]
+
+
+
+\subsection{Nominal-state bias and gravity equations}
+
+For the nominal state, the gyroscope bias, accelerometer bias, and
+gravity are modeled as constant during propagation:
+\[
+\dot b_g=0,
+\qquad
+\dot b_a=0,
+\qquad
+\dot g=0.
+\]
+
+Integrating the gyroscope-bias equation over one sampling interval,
+\[
+b_g(t+\Delta t)
+=
+b_g(t)
++
+\int_t^{t+\Delta t}\dot b_g(\tau)\,d\tau,
+\]
+gives
+\begin{equation}
+\boxed{
+b_g(t+\Delta t)=b_g(t).
+}
+\end{equation}
+
+Similarly,
+\[
+b_a(t+\Delta t)
+=
+b_a(t)
++
+\int_t^{t+\Delta t}\dot b_a(\tau)\,d\tau,
+\]
+so
+\begin{equation}
+\boxed{
+b_a(t+\Delta t)=b_a(t).
+}
+\end{equation}
+
+For gravity,
+\[
+g(t+\Delta t)
+=
+g(t)
++
+\int_t^{t+\Delta t}\dot g(\tau)\,d\tau,
+\]
+and therefore
+\begin{equation}
+\boxed{
+g(t+\Delta t)=g(t).
+}
+\end{equation}
+
+The constant nominal-bias equations do not imply that the physical IMU
+biases are assumed to remain exactly constant.  Their random-walk
+variations are represented in the error-state dynamics by
+\[
+\delta\dot b_g=\eta_{bg},
+\qquad
+\delta\dot b_a=\eta_{ba},
+\]
+and their uncertainty is propagated through the error-state covariance.
+
+
+\subsection{Summary of the discrete-time nominal-state equations}
+
+Collecting the nominal-state propagation equations,
+\begin{equation}
+\boxed{
+\begin{aligned}
+p(t+\Delta t)
+&=
+p(t)+v(t)\Delta t
++\frac12
+\left[
+R(t)(\tilde a(t)-b_a(t))+g(t)
+\right]\Delta t^2,
+\\[1mm]
+v(t+\Delta t)
+&=
+v(t)
++
+\left[
+R(t)(\tilde a(t)-b_a(t))+g(t)
+\right]\Delta t,
+\\[1mm]
+R(t+\Delta t)
+&=
+R(t)
+\Exp\!\left(
+(\tilde\omega(t)-b_g(t))\Delta t
+\right),
+\\[1mm]
+b_g(t+\Delta t)
+&=
+b_g(t),
+\\
+b_a(t+\Delta t)
+&=
+b_a(t),
+\\
+g(t+\Delta t)
+&=
+g(t).
+\end{aligned}
+}
+\end{equation}
+
+\subsection{Discrete-time error-state equations}
+
+We now discretize the continuous-time error-state equations derived
+previously.
+
+\subsubsection*{Position error}
+
+From the continuous-time position-error equation,
+\[
+\delta\dot p=\delta v,
+\]
+assume that $\delta v$ is approximately constant over one short
+sampling interval $[t,t+\Delta t]$. Then
+\begin{align}
+\delta p(t+\Delta t)-\delta p(t)
+&=
+\int_t^{t+\Delta t}\delta\dot p(\tau)\,d\tau\\
+&=
+\int_t^{t+\Delta t}\delta v(\tau)\,d\tau\\
+&\approx
+\delta v(t)\Delta t.
+\end{align}
+
+Therefore,
+\begin{equation}
+\boxed{
+\delta p(t+\Delta t)
+=
+\delta p(t)+\delta v(t)\Delta t.
+}
+\end{equation}
+
+\subsubsection*{Velocity error}
+
+From the continuous-time velocity-error equation,
+\[
+\delta\dot v
+=
+-R(\tilde a-b_a)^\wedge\delta\theta
+-R\delta b_a
+-\eta_a
++\delta g,
+\]
+define the deterministic part
+\begin{equation}
+\boxed{
+f_v
+=
+-R(\tilde a-b_a)^\wedge\delta\theta
+-R\delta b_a
++\delta g.
+}
+\end{equation}
+
+Then
+\[
+\delta\dot v=f_v-\eta_a.
+\]
+
+Integrating over one sampling interval,
+\begin{align}
+\delta v(t+\Delta t)-\delta v(t)
+&=
+\int_t^{t+\Delta t}f_v(\tau)\,d\tau
+-
+\int_t^{t+\Delta t}\eta_a(\tau)\,d\tau.
+\end{align}
+
+Assume that the deterministic quantities in $f_v$ are approximately
+constant over the short interval:
+\begin{equation}
+\boxed{
+f_v(\tau)\approx f_v(t),
+\qquad
+\tau\in[t,t+\Delta t].
+}
+\end{equation}
+
+Thus
+\[
+\int_t^{t+\Delta t}f_v(\tau)\,d\tau
+\approx
+f_v(t)\Delta t.
+\]
+
+Define the integrated accelerometer-noise increment
+\begin{equation}
+\boxed{
+\eta_v
+\equiv
+\int_t^{t+\Delta t}\eta_a(\tau)\,d\tau.
+}
+\end{equation}
+
+Assume the continuous-time accelerometer noise is zero-mean white
+Gaussian noise with
+\[
+\mathbb{E}[\eta_a(t)]=0
+\]
+and
+\begin{equation}
+\boxed{
+\mathbb{E}\!\left[
+\eta_a(t)\eta_a(s)^T
+\right]
+=
+\sigma_a^2 I\,\delta(t-s).
+}
+\end{equation}
+Equivalently, $\sigma_a^2$ is the continuous-time white-noise intensity
+(per axis).  Then the integrated noise increment also has zero mean:
+\[
+\mathbb{E}[\eta_v]=0.
+\]
+
+Its covariance is
+\begin{align}
+\operatorname{Cov}(\eta_v)
+&=
+\mathbb{E}\!\left[
+\eta_v\eta_v^T
+\right]
+\\
+&=
+\int_t^{t+\Delta t}
+\int_t^{t+\Delta t}
+\mathbb{E}\!\left[
+\eta_a(\tau)\eta_a(s)^T
+\right]
+\,d\tau\,ds
+\\
+&=
+\sigma_a^2 I
+\int_t^{t+\Delta t}
+\int_t^{t+\Delta t}
+\delta(\tau-s)\,d\tau\,ds
+\\
+&=
+\boxed{
+\sigma_a^2\Delta t\,I.
+}
+\end{align}
+
+Thus, per axis,
+\begin{equation}
+\boxed{
+\operatorname{Var}(\eta_v)
+=
+\sigma_a^2\Delta t.
+}
+\end{equation}
+
+The book distinguishes the sampled accelerometer measurement noise from
+the continuous-time noise-density parameter through
+\begin{equation}
+\boxed{
+\sigma_a(k)
+=
+\frac{\sigma_a}{\sqrt{\Delta t}}.
+}
+\end{equation}
+
+Therefore the standard deviation of the integrated velocity-noise
+increment can be written in either equivalent form:
+\begin{equation}
+\boxed{
+\sigma(\eta_v)
+=
+\Delta t\,\sigma_a(k)
+=
+\sigma_a\sqrt{\Delta t}.
+}
+\end{equation}
+
+The first expression uses the sampled-noise notation, while the
+second follows directly after substituting the sampled-noise relation.
+
+Note that writing simply
+\[
+\operatorname{Var}(\eta_a)=\sigma_a^2
+\]
+for continuous-time white noise is shorthand for its noise intensity.
+The Dirac-delta covariance above makes the continuous-to-discrete
+scaling explicit.
+
+Hence
+\[
+\delta v(t+\Delta t)
+\approx
+\delta v(t)+f_v(t)\Delta t-\eta_v.
+\]
+
+Substituting the expression for $f_v(t)$ gives
+\begin{equation}
+\boxed{
+\begin{aligned}
+\delta v(t+\Delta t)
+&=
+\delta v(t)
+-R(t)(\tilde a(t)-b_a(t))^\wedge
+ \delta\theta(t)\Delta t\\
+&\quad
+-R(t)\delta b_a(t)\Delta t
++\delta g(t)\Delta t
+-\eta_v.
+\end{aligned}
+}
+\end{equation}
+
+The term $\eta_v$ is the discrete-time noise increment obtained by
+integrating the continuous-time accelerometer noise over the sampling
+interval; unlike the deterministic term $f_v(t)\Delta t$, it should not
+be interpreted simply as a deterministic constant multiplied by
+$\Delta t$.
+
+
+\subsubsection*{Rotation error}
+
+From the continuous-time rotation-error equation,
+\[
+\delta\dot\theta
+=
+-(\tilde\omega-b_g)^\wedge\delta\theta
+-\delta b_g
+-\eta_g,
+\]
+define
+\[
+A
+\equiv
+-(\tilde\omega-b_g)^\wedge.
+\]
+
+Over one short IMU sampling interval, assume that
+\[
+\tilde\omega(\tau)\approx\tilde\omega(t),
+\qquad
+b_g(\tau)\approx b_g(t),
+\]
+so that $A$ is approximately constant.  The homogeneous equation
+\[
+\dot x=Ax
+\]
+has the solution
+\[
+x(t+\Delta t)=\exp(A\Delta t)x(t).
+\]
+
+Therefore the homogeneous part of the rotation error propagates as
+\[
+\delta\theta(t+\Delta t)
+=
+\exp\!\left(
+-(\tilde\omega(t)-b_g(t))^\wedge\Delta t
+\right)\delta\theta(t).
+\]
+
+Using the $\SO(3)$ exponential-map notation,
+\[
+\exp\!\left(
+-(\tilde\omega-b_g)^\wedge\Delta t
+\right)
+=
+\Exp\!\left(
+-(\tilde\omega-b_g)\Delta t
+\right).
+\]
+
+For the forcing terms $-\delta b_g-\eta_g$, the first-order
+discretization used here gives
+\begin{equation}
+\boxed{
+\begin{aligned}
+\delta\theta(t+\Delta t)
+&\approx
+\Exp\!\left(
+-(\tilde\omega(t)-b_g(t))\Delta t
+\right)\delta\theta(t)
+\\
+&\quad
+-\delta b_g(t)\Delta t
+-\eta_\theta,
+\end{aligned}
+}
+\end{equation}
+where the integrated gyroscope-noise increment is
+\begin{equation}
+\boxed{
+\eta_\theta
+\equiv
+\int_t^{t+\Delta t}\eta_g(\tau)\,d\tau.
+}
+\end{equation}
+
+More exactly, for constant
+\[
+A=-(\tilde\omega-b_g)^\wedge,
+\]
+the variation-of-constants formula is
+\[
+\delta\theta(t+\Delta t)
+=
+e^{A\Delta t}\delta\theta(t)
+-
+\int_t^{t+\Delta t}
+e^{A(t+\Delta t-\tau)}
+\left[
+\delta b_g(\tau)+\eta_g(\tau)
+\right]d\tau.
+\]
+The expression above with
+$-\delta b_g\Delta t-\eta_\theta$ is the corresponding first-order
+forcing-term approximation.
+
+\paragraph{Variance of the discrete rotation-noise increment.}
+
+Assume the continuous-time gyroscope noise is zero-mean isotropic white
+Gaussian noise with
+\[
+\mathbb{E}[\eta_g(t)]=0
+\]
+and
+\begin{equation}
+\boxed{
+\mathbb{E}\!\left[
+\eta_g(t)\eta_g(s)^T
+\right]
+=
+\sigma_g^2 I\,\delta(t-s).
+}
+\end{equation}
+
+Then
+\[
+\mathbb{E}[\eta_\theta]=0
+\]
+and
+\begin{align}
+\operatorname{Cov}(\eta_\theta)
+&=
+\mathbb{E}\!\left[
+\eta_\theta\eta_\theta^T
+\right]
+\\
+&=
+\int_t^{t+\Delta t}
+\int_t^{t+\Delta t}
+\mathbb{E}\!\left[
+\eta_g(\tau)\eta_g(s)^T
+\right]
+\,d\tau\,ds
+\\
+&=
+\boxed{
+\sigma_g^2\Delta t\,I.
+}
+\end{align}
+
+Thus, per axis,
+\begin{equation}
+\boxed{
+\operatorname{Var}(\eta_\theta)
+=
+\sigma_g^2\Delta t.
+}
+\end{equation}
+
+For the sampled gyroscope measurement noise, the book uses
+\begin{equation}
+\boxed{
+\sigma_g(k)
+=
+\frac{\sigma_g}{\sqrt{\Delta t}}.
+}
+\end{equation}
+
+Hence the standard deviation of the integrated rotation-noise increment
+can be written as
+\begin{equation}
+\boxed{
+\sigma(\eta_\theta)
+=
+\Delta t\,\sigma_g(k)
+=
+\sigma_g\sqrt{\Delta t}.
+}
+\end{equation}
+
+Again, the first form uses the sampled-noise notation, while the second is the
+equivalent expression in terms of the continuous-time noise-density
+parameter.  The $\sqrt{\Delta t}$ factor belongs to the standard
+deviation, not to the variance.  The same covariance result also holds if the
+exact state-transition rotation inside the noise integral is retained:
+because $A$ is skew-symmetric, $e^{As}$ is a rotation matrix, and for
+isotropic noise
+\[
+e^{As}(\sigma_g^2 I)e^{As\,T}
+=
+\sigma_g^2 I.
+\]
+
+\subsubsection*{Gyroscope-bias error}
+
+Here we explicitly distinguish the continuous-time bias random-walk
+process from its integrated discrete-time increment.  The continuous
+process is denoted by
+\[
+\eta_{bg}(t),
+\]
+while
+\[
+\eta_{bg,d}
+\]
+denotes the noise accumulated over one sampling interval.  The book
+reuses the symbol $\eta_{bg}$ for the discrete increment in
+Eqs.~(3.42)--(3.43); the subscript $d$ is retained here to avoid
+ambiguity.
+
+From
+\[
+\delta\dot b_g=\eta_{bg},
+\]
+integrating over one sampling interval gives
+\[
+\delta b_g(t+\Delta t)
+=
+\delta b_g(t)
++
+\int_t^{t+\Delta t}\eta_{bg}(\tau)\,d\tau.
+\]
+
+Define
+\begin{equation}
+\boxed{
+\eta_{bg,d}
+\equiv
+\int_t^{t+\Delta t}\eta_{bg}(\tau)\,d\tau.
+}
+\end{equation}
+
+Then
+\begin{equation}
+\boxed{
+\delta b_g(t+\Delta t)
+=
+\delta b_g(t)+\eta_{bg,d}.
+}
+\end{equation}
+
+If
+\[
+\mathbb{E}\!\left[
+\eta_{bg}(t)\eta_{bg}(s)^T
+\right]
+=
+\sigma_{bg}^2 I\,\delta(t-s),
+\]
+then
+\begin{equation}
+\boxed{
+\operatorname{Cov}(\eta_{bg,d})
+=
+\sigma_{bg}^2\Delta t\,I,
+}
+\end{equation}
+or, per axis,
+\begin{equation}
+\boxed{
+\operatorname{Var}(\eta_{bg,d})
+=
+\sigma_{bg}^2\Delta t,
+\qquad
+\sigma_{\eta_{bg,d}}
+=
+\sigma_{bg}\sqrt{\Delta t}.
+}
+\end{equation}
+
+\subsubsection*{Accelerometer-bias error}
+
+Likewise, $\eta_{ba}(t)$ denotes the continuous-time accelerometer-bias
+random-walk process, while $\eta_{ba,d}$ denotes its integrated
+discrete-time increment over one sampling interval.
+
+Similarly, from
+\[
+\delta\dot b_a=\eta_{ba},
+\]
+we obtain
+\begin{equation}
+\boxed{
+\delta b_a(t+\Delta t)
+=
+\delta b_a(t)+\eta_{ba,d},
+}
+\end{equation}
+where
+\begin{equation}
+\boxed{
+\eta_{ba,d}
+\equiv
+\int_t^{t+\Delta t}\eta_{ba}(\tau)\,d\tau.
+}
+\end{equation}
+
+For continuous-time isotropic white noise intensity
+$\sigma_{ba}^2$,
+\begin{equation}
+\boxed{
+\operatorname{Cov}(\eta_{ba,d})
+=
+\sigma_{ba}^2\Delta t\,I,
+}
+\end{equation}
+and therefore
+\begin{equation}
+\boxed{
+\operatorname{Var}(\eta_{ba,d})
+=
+\sigma_{ba}^2\Delta t,
+\qquad
+\sigma_{\eta_{ba,d}}
+=
+\sigma_{ba}\sqrt{\Delta t}.
+}
+\end{equation}
+
+\subsubsection*{Gravity error}
+
+From
+\[
+\delta\dot g=0,
+\]
+integration gives
+\[
+\delta g(t+\Delta t)-\delta g(t)
+=
+\int_t^{t+\Delta t}\delta\dot g(\tau)\,d\tau
+=
+0.
+\]
+
+Therefore
+\begin{equation}
+\boxed{
+\delta g(t+\Delta t)
+=
+\delta g(t).
+}
+\end{equation}
+
+\subsection{Summary of the discrete-time error-state equations}
+
+Collecting the discrete-time error-state propagation equations,
+\begin{equation}
+\boxed{
+\begin{aligned}
+\delta p_{k+1}
+&=
+\delta p_k+\delta v_k\Delta t,
+\\[1mm]
+\delta v_{k+1}
+&=
+\delta v_k
+-R_k(\tilde a_k-b_{a,k})^\wedge\delta\theta_k\Delta t
+-R_k\delta b_{a,k}\Delta t
++\delta g_k\Delta t
+-\eta_v,
+\\[1mm]
+\delta\theta_{k+1}
+&\approx
+\Exp\!\left(
+-(\tilde\omega_k-b_{g,k})\Delta t
+\right)\delta\theta_k
+-\delta b_{g,k}\Delta t
+-\eta_\theta,
+\\[1mm]
+\delta b_{g,k+1}
+&=
+\delta b_{g,k}+\eta_{bg,d},
+\\
+\delta b_{a,k+1}
+&=
+\delta b_{a,k}+\eta_{ba,d},
+\\
+\delta g_{k+1}
+&=
+\delta g_k.
+\end{aligned}
+}
+\end{equation}
+
+It is useful to list both the standard deviations and variances.  The sampled IMU measurement-noise
+standard deviations satisfy
+\[
+\sigma_a(k)=\frac{\sigma_a}{\sqrt{\Delta t}},
+\qquad
+\sigma_g(k)=\frac{\sigma_g}{\sqrt{\Delta t}}.
+\]
+
+Therefore,
+\begin{equation}
+\boxed{
+\begin{aligned}
+\sigma(\eta_v)
+&=
+\Delta t\,\sigma_a(k)
+=
+\sigma_a\sqrt{\Delta t},
+&
+\operatorname{Var}(\eta_v)
+&=
+\sigma_a^2\Delta t,
+\\[1mm]
+\sigma(\eta_\theta)
+&=
+\Delta t\,\sigma_g(k)
+=
+\sigma_g\sqrt{\Delta t},
+&
+\operatorname{Var}(\eta_\theta)
+&=
+\sigma_g^2\Delta t,
+\\[1mm]
+\sigma(\eta_{bg,d})
+&=
+\sigma_{bg}\sqrt{\Delta t},
+&
+\operatorname{Var}(\eta_{bg,d})
+&=
+\sigma_{bg}^2\Delta t,
+\\[1mm]
+\sigma(\eta_{ba,d})
+&=
+\sigma_{ba}\sqrt{\Delta t},
+&
+\operatorname{Var}(\eta_{ba,d})
+&=
+\sigma_{ba}^2\Delta t.
+\end{aligned}
+}
+\end{equation}
+
+The first two standard-deviation expressions use the sampled IMU-noise
+notation.  For the bias random walks, the book denotes the
+integrated discrete noises again by $\eta_{bg}$ and $\eta_{ba}$; this
+note uses $\eta_{bg,d}$ and $\eta_{ba,d}$ so that they remain distinct
+from the continuous-time processes $\eta_{bg}(t)$ and $\eta_{ba}(t)$.
+
+
+\section{Motion Process of ESKF}
+
+Using the discrete-time error-state equations derived above, write the
+error-state motion model as
+\begin{equation}
+\boxed{
+\delta x_{k+1}
+=
+f(\delta x_k)+w_k,
+\qquad
+w_k\sim\mathcal N(0,Q_k).
+}
+\end{equation}
+
+The discrete process-noise covariance is
+\begin{equation}
+\boxed{
+Q_k
+=
+\operatorname{diag}
+\left(
+0_3,\,
+\operatorname{Cov}(\eta_v),\,
+\operatorname{Cov}(\eta_\theta),\,
+\operatorname{Cov}(\eta_{bg,d}),\,
+\operatorname{Cov}(\eta_{ba,d}),\,
+0_3
+\right).
+}
+\end{equation}
+
+Here the subscript $d$ is retained for the bias-noise increments in
+order to distinguish them from the corresponding continuous-time
+white-noise processes.
+
+\subsection{Linearized form}
+
+Linearize the discrete transition function $f$ about the nominal
+error-state mean.  For a general linearization point
+$\bar{\delta x}_k$,
+\[
+f(\delta x_k)
+\approx
+f(\bar{\delta x}_k)
++
+\left.
+\frac{\partial f(\delta x)}
+{\partial\delta x}
+\right|_{\delta x=\bar{\delta x}_k}
+(\delta x_k-\bar{\delta x}_k).
+\]
+
+In the ESKF, the error-state mean is reset to zero, so the
+linearization point is
+\[
+\bar{\delta x}_k=0.
+\]
+
+Therefore,
+\[
+f(\delta x_k)
+\approx
+f(0)
++
+\left.
+\frac{\partial f(\delta x)}
+{\partial\delta x}
+\right|_{\delta x=0}
+\delta x_k.
+\]
+
+For the error-state motion model,
+\[
+f(0)=0.
+\]
+
+Define the discrete-time error-state transition Jacobian as
+\begin{equation}
+\boxed{
+F_k
+\triangleq
+\left.
+\frac{\partial f(\delta x)}
+{\partial\delta x}
+\right|_{\delta x=0}.
+}
+\end{equation}
+
+The linearized error-state propagation is therefore
+\begin{equation}
+\boxed{
+\delta x_{k+1}
+\approx
+F_k\delta x_k+w_k.
+}
+\end{equation}
+
+Thus, $F_k$ is the Jacobian of the \emph{discrete-time error-state
+transition function} with respect to the error state, evaluated at
+zero error.  It should not be confused with the time derivative
+$d\delta x/dt$.
+
+\subsection{State transition Jacobian matrix}
+
+The error-state ordering is
+\begin{equation}
+\boxed{
+\delta x
+=
+\begin{bmatrix}
+\delta p &
+\delta v &
+\delta\theta &
+\delta b_g &
+\delta b_a &
+\delta g
+\end{bmatrix}^{T}.
+}
+\end{equation}
+
+Since the discrete-time error-state equations have already been
+linearized explicitly, the transition Jacobian can be read directly
+from the coefficients multiplying each error-state component.  With
+the ordering above,
+\begin{equation}
+\boxed{
+F_k
+=
+\begin{bmatrix}
+I_3
+&
+I_3\Delta t
+&
+0
+&
+0
+&
+0
+&
+0
+\\[1mm]
+0
+&
+I_3
+&
+-R(\tilde a-b_a)^\wedge\Delta t
+&
+0
+&
+-R\Delta t
+&
+I_3\Delta t
+\\[1mm]
+0
+&
+0
+&
+\Exp\!\left(-(\tilde\omega-b_g)\Delta t\right)
+&
+-I_3\Delta t
+&
+0
+&
+0
+\\[1mm]
+0
+&
+0
+&
+0
+&
+I_3
+&
+0
+&
+0
+\\[1mm]
+0
+&
+0
+&
+0
+&
+0
+&
+I_3
+&
+0
+\\[1mm]
+0
+&
+0
+&
+0
+&
+0
+&
+0
+&
+I_3
+\end{bmatrix}.
+}
+\end{equation}
+
+Each entry is a $3\times3$ block, so $F_k\in\R^{18\times18}$.
+
+\subsection{ESKF IMU propagation flow}
+
+For each new IMU measurement, the ESKF prediction process can be
+summarized as follows:
+\begin{equation}
+\boxed{
+\begin{array}{c}
+\text{New IMU measurement}
+\\
+(\tilde a_k,\ \tilde\omega_k,\ \Delta t)
+\\[2mm]
+\downarrow
+\\[2mm]
+\text{Nominal-state prediction}
+\\
+\text{using the discrete-time nominal-state equations}
+\\[2mm]
+\downarrow
+\\[2mm]
+x_{k+1}^{\mathrm{pred}}
+=
+[p,\ v,\ R,\ b_g,\ b_a,\ g]^T
+\\[2mm]
+\downarrow
+\\[2mm]
+\text{Build the error-state transition matrix }F_k
+\\
+\text{using the error-state transition Jacobian}
+\\[2mm]
+\downarrow
+\\[-1mm]
+\begin{array}{ccc}
+\delta x_{k+1}^{\mathrm{pred}}
+=
+F_k\delta x_k
+&
+\qquad
+&
+P_{k+1}^{\mathrm{pred}}
+=
+F_kP_kF_k^T+Q_k
+\\
+\text{usually remains zero}
+&&
+\text{propagate uncertainty}
+\end{array}
+\\[3mm]
+\downarrow
+\\[2mm]
+\text{Predicted ESKF state}
+\\
+\left(
+x_{k+1}^{\mathrm{pred}},
+\ \delta x_{k+1}^{\mathrm{pred}},
+\ P_{k+1}^{\mathrm{pred}}
+\right).
+\end{array}
+}
+\end{equation}
+
+Mathematically, the prediction contains three steps:
+\begin{enumerate}
+    \item propagate the nominal state using the IMU measurements;
+    \item propagate the error-state mean,
+    \[
+    \delta x_{k+1}^{\mathrm{pred}}=F_k\delta x_k;
+    \]
+    \item propagate the error-state covariance,
+    \[
+    P_{k+1}^{\mathrm{pred}}
+    =
+    F_kP_kF_k^T+Q_k.
+    \]
+\end{enumerate}
+
+In the ESKF, the error-state mean is reset to zero after the update
+step.  Therefore, in the usual prediction cycle,
+\[
+\delta x_k=0
+\quad\Longrightarrow\quad
+\delta x_{k+1}^{\mathrm{pred}}
+=
+F_k\delta x_k
+=
+0.
+\]
+Consequently, the explicit error-state mean propagation is often
+unnecessary in an implementation.  The important quantities propagated
+during the IMU prediction are the nominal state and the error-state
+covariance.
 
 \end{document}

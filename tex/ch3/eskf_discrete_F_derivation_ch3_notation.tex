@@ -1,0 +1,337 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,bm,mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+
+\newcommand{\R}{\mathbf{R}}
+\newcommand{\p}{\mathbf{p}}
+\newcommand{\vct}{\mathbf{v}}
+\newcommand{\bg}{\mathbf{b}_{\mathrm{g}}}
+\newcommand{\ba}{\mathbf{b}_{\mathrm{a}}}
+\newcommand{\g}{\mathbf{g}}
+\newcommand{\I}{\mathbf{I}}
+\newcommand{\Exp}{\operatorname{Exp}}
+\newcommand{\Jr}{\mathbf{J}_r}
+\newcommand{\skewop}[1]{#1^{\wedge}}
+\newcommand{\atilde}{\tilde{\mathbf{a}}}
+\newcommand{\omegatilde}{\tilde{\bm\omega}}
+
+\title{ESKF State-Transition Jacobian: Continuous Error-State and Direct Discrete Derivations}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Purpose}
+This note connects two ways of deriving the ESKF state-transition matrix $F$:
+\begin{enumerate}
+    \item derive the continuous-time error-state kinematics and then discretize them;
+    \item start directly from the discrete nominal-state propagation and linearize it with respect to local state perturbations.
+\end{enumerate}
+They describe the same propagation of small errors. When the same approximation order is retained, the results agree. Direct differentiation of a discrete propagation may retain higher-order terms in $\Delta t$ that are absent from a first-order discretization $F_d \approx I+F_c\Delta t$.
+
+\section{True, nominal, and error states}
+The true state is represented by a nominal state plus a small error. For Euclidean variables,
+\begin{align}
+\p^t &= \p + \delta\p,\\
+\vct^t &= \vct + \delta\vct,\\
+\bg{}^t &= \bg + \delta\bg,\\
+\ba{}^t &= \ba + \delta\ba,\\
+\g^t &= \g + \delta\g.
+\end{align}
+For rotation, using a right perturbation,
+\begin{equation}
+\R^t = \R\Exp(\delta\bm\theta).
+\end{equation}
+The 18-dimensional error state is
+\begin{equation}
+\delta\bm x =
+\begin{bmatrix}
+\delta\p &
+\delta\vct &
+\delta\bm\theta &
+\delta\bg &
+\delta\ba &
+\delta\g
+\end{bmatrix}^{T}.
+\end{equation}
+
+\section{Two routes to the discrete transition matrix}
+The textbook route starts from continuous-time error dynamics,
+\begin{equation}
+\delta\dot{\bm x}=F_c\,\delta\bm x+G_c\bm w,
+\end{equation}
+and then discretizes them. A first-order discretization gives
+\begin{equation}
+F_d \approx I+F_c\Delta t.
+\end{equation}
+
+The direct discrete route first writes the nominal propagation
+\begin{equation}
+\bm x_{k+1}=f_d(\bm x_k,\bm u_k),
+\end{equation}
+perturbs the input state, propagates it through the same discrete function, and measures the resulting output perturbation:
+\begin{align}
+\bm x_k^t &= \bm x_k\oplus\delta\bm x_k,\\
+\bm x_{k+1}^t &= f_d(\bm x_k\oplus\delta\bm x_k,\bm u_k),\\
+\bm x_{k+1}^t &= \bm x_{k+1}\oplus\delta\bm x_{k+1}.
+\end{align}
+Linearization gives
+\begin{equation}
+\delta\bm x_{k+1}\approx F_d\,\delta\bm x_k.
+\end{equation}
+Thus $F_d$ is the local Jacobian describing how the current error propagates into the next error.
+
+\section{Discrete nominal-state propagation}
+Using the Chapter 3 notation, the IMU measurements are denoted by
+$\atilde$ and $\omegatilde$. The increments used in propagation are
+\begin{align}
+\bm\tau &\triangleq (\omegatilde-\bg)\Delta t.
+\end{align}
+The nominal propagation considered here is
+\begin{align}
+\p_{k+1}
+&=\p_k+\vct_k\Delta t
++\frac12\R_k(\atilde-\ba)\,\Delta t^2
++\frac12\g_k\Delta t^2,\\
+\vct_{k+1}
+&=\vct_k+\R_k(\atilde-\ba)\,\Delta t+\g_k\Delta t,\\
+\R_{k+1}
+&=\R_k\Exp(\bm\tau),\\
+\bg{}_{k+1}&=\bg{}_k,\\
+\ba{}_{k+1}&=\ba{}_k,\\
+\g_{k+1}&=\g_k.
+\end{align}
+
+\section{Position row of $F$}
+Starting from
+\begin{equation}
+\p_{k+1}=\p_k+\vct_k\Delta t+\frac12\R_k(\atilde-\ba)\Delta t^2+\frac12\g_k\Delta t^2,
+\end{equation}
+we obtain immediately
+\begin{align}
+F_{pp}&=I,\\
+F_{pv}&=I\Delta t.
+\end{align}
+
+For the rotation term, apply a right perturbation:
+\begin{equation}
+\R_k^t=\R_k\Exp(\delta\bm\theta_k)
+\approx \R_k(I+\skewop{\delta\bm\theta_k}).
+\end{equation}
+Then
+\begin{align}
+\R_k^t(\atilde-\ba)
+&\approx \R_k(\atilde-\ba)+\R_k\skewop{\delta\bm\theta_k}(\atilde-\ba)\\
+&=\R_k(\atilde-\ba)-\R_k\skewop{(\atilde-\ba)}\,\delta\bm\theta_k,
+\end{align}
+where $\skewop{\delta\bm\theta}(\atilde-\ba)=-\skewop{(\atilde-\ba)}\delta\bm\theta$. Therefore
+\begin{equation}
+\boxed{F_{p\theta}=-\frac12\R_k\skewop{(\atilde-\ba)}\Delta t^2.}
+\end{equation}
+Because the accelerometer term is $\atilde-\ba$,
+\begin{equation}
+\boxed{F_{pb_a}=-\frac12\R_k\Delta t^2.}
+\end{equation}
+The gravity contribution is
+\begin{equation}
+\boxed{F_{pg}=\frac12I\Delta t^2.}
+\end{equation}
+There is no direct $b_g$ dependence in this discrete position update, hence
+\begin{equation}
+F_{pb_g}=0.
+\end{equation}
+The complete position error propagation is therefore
+\begin{align}
+\delta\p_{k+1}
+={}&\delta\p_k+\Delta t\,\delta\vct_k
+-\frac12\R_k\skewop{(\atilde-\ba)}\Delta t^2\delta\bm\theta_k\\
+&-\frac12\R_k\Delta t^2\delta\ba{}_k
++\frac12I\Delta t^2\delta\g_k.
+\end{align}
+
+\section{Velocity row of $F$}
+From
+\begin{equation}
+\vct_{k+1}=\vct_k+\R_k(\atilde-\ba)\Delta t+\g_k\Delta t,
+\end{equation}
+we obtain
+\begin{align}
+F_{vp}&=0,\\
+F_{vv}&=I,\\
+\boxed{F_{v\theta}}&=\boxed{-\R_k\skewop{(\atilde-\ba)}\Delta t},\\
+F_{vb_g}&=0,\\
+\boxed{F_{vb_a}}&=\boxed{-\R_k\Delta t},\\
+\boxed{F_{vg}}&=\boxed{I\Delta t}.
+\end{align}
+Thus
+\begin{equation}
+\delta\vct_{k+1}
+=\delta\vct_k
+-\R_k\skewop{(\atilde-\ba)}\Delta t\,\delta\bm\theta_k
+-\R_k\Delta t\,\delta\ba{}_k
++I\Delta t\,\delta\g_k.
+\end{equation}
+
+\section{Rotation row of $F$ and the manif Jacobians}
+The rotation propagation is
+\begin{equation}
+\R_{k+1}=\R_k\oplus\bm\tau=\R_k\Exp(\bm\tau),
+\qquad
+\bm\tau=(\omegatilde-\bg)\Delta t.
+\end{equation}
+A \texttt{manif} call of the form
+\begin{lstlisting}[language=C++,basicstyle=\ttfamily\small]
+new_R = R_.rplus(tau, J_R, J_tau);
+\end{lstlisting}
+returns the propagated rotation together with the local Jacobians
+\begin{align}
+J_R &= \frac{\partial(\R\oplus\bm\tau)}{\partial\R},\\
+J_\tau &= \frac{\partial(\R\oplus\bm\tau)}{\partial\bm\tau}.
+\end{align}
+For the right-plus convention on $SO(3)$,
+\begin{align}
+\boxed{J_R=\Exp(-\bm\tau)},\\
+\boxed{J_\tau=J_r(\bm\tau)}.
+\end{align}
+Therefore
+\begin{equation}
+\boxed{F_{\theta\theta}=J_R=\Exp(-\bm\tau).}
+\end{equation}
+Since
+\begin{equation}
+\frac{\partial\bm\tau}{\partial\bg}=-I\Delta t,
+\end{equation}
+the chain rule gives
+\begin{equation}
+\boxed{F_{\theta b_g}=-J_\tau\Delta t=-J_r(\bm\tau)\Delta t.}
+\end{equation}
+Hence
+\begin{equation}
+\delta\bm\theta_{k+1}
+=J_R\delta\bm\theta_k-J_\tau\Delta t\,\delta\bg{}_k.
+\end{equation}
+
+For a small IMU interval,
+\begin{align}
+J_R
+&=\Exp(-\bm\tau)
+\approx I-\skewop{(\omegatilde-\bg)}\Delta t+O(\Delta t^2),\\
+J_r(\bm\tau)
+&\approx I-\frac12\skewop{\bm\tau}+O(\|\bm\tau\|^2).
+\end{align}
+Consequently
+\begin{equation}
+-J_r(\bm\tau)\Delta t
+=-I\Delta t+O(\Delta t^2),
+\end{equation}
+which explains the textbook first-order approximation $F_{\theta b_g}\approx-I\Delta t$.
+
+\section{Bias and gravity rows}
+With random-walk driving noise omitted from the deterministic state-transition Jacobian,
+\begin{align}
+\delta\bg{}_{k+1}&=\delta\bg{}_k,\\
+\delta\ba{}_{k+1}&=\delta\ba{}_k,\\
+\delta\g_{k+1}&=\delta\g_k.
+\end{align}
+Thus
+\begin{equation}
+F_{b_gb_g}=I,\qquad
+F_{b_ab_a}=I,\qquad
+F_{gg}=I,
+\end{equation}
+and their other deterministic blocks are zero.
+
+\section{Complete direct-discrete state-transition matrix}
+Using
+\begin{equation}
+\bm\tau=(\omegatilde-\bg)\Delta t,
+\end{equation}
+the direct Jacobian of the stated discrete nominal propagation is
+\begin{equation}
+\boxed{
+F_d=
+\begin{bmatrix}
+I & I\Delta t & -\frac12\R_k\skewop{(\atilde-\ba)}\Delta t^2 & 0 & -\frac12\R_k\Delta t^2 & \frac12I\Delta t^2\\
+0 & I & -\R_k\skewop{(\atilde-\ba)}\Delta t & 0 & -\R_k\Delta t & I\Delta t\\
+0 & 0 & J_R & -J_\tau\Delta t & 0 & 0\\
+0 & 0 & 0 & I & 0 & 0\\
+0 & 0 & 0 & 0 & I & 0\\
+0 & 0 & 0 & 0 & 0 & I
+\end{bmatrix},
+}
+\end{equation}
+where
+\begin{equation}
+J_R=\Exp(-\bm\tau),
+\qquad
+J_\tau=J_r(\bm\tau).
+\end{equation}
+
+\section{Why the textbook position row is simpler}
+For the continuous error-state system, the position equation is
+\begin{equation}
+\delta\dot{\p}=\delta\vct.
+\end{equation}
+Therefore the continuous-time block from rotation error to position-error rate is zero:
+\begin{equation}
+(F_c)_{p\theta}=0.
+\end{equation}
+If the discrete transition is approximated only to first order,
+\begin{equation}
+F_d\approx I+F_c\Delta t,
+\end{equation}
+then
+\begin{equation}
+(F_d)_{p\theta}=0.
+\end{equation}
+The direct discrete position equation, however, contains the term
+\begin{equation}
+\frac12\R_k(\atilde-\ba)\Delta t^2,
+\end{equation}
+so its Jacobian contains
+\begin{equation}
+F_{p\theta}=-\frac12\R_k\skewop{(\atilde-\ba)}\Delta t^2.
+\end{equation}
+This is a second-order term. It is not a contradiction: it is simply discarded by the first-order approximation $I+F_c\Delta t$. A higher-order expansion
+\begin{equation}
+e^{F_c\Delta t}
+=I+F_c\Delta t+\frac12F_c^2\Delta t^2+\cdots
+\end{equation}
+recovers such indirect couplings, e.g. rotation error $\rightarrow$ velocity error $\rightarrow$ position error.
+
+Similarly,
+\begin{equation}
+J_R=\Exp\!\left(-(\omegatilde-\bg)\Delta t\right)
+=I-\skewop{(\omegatilde-\bg)}\Delta t+O(\Delta t^2),
+\end{equation}
+so the exact/local discrete Lie-group Jacobian and the textbook first-order rotation block agree to first order.
+
+\section{Main interpretation}
+The essential quantity is not ``the nominal-state Jacobian'' versus ``the error-state Jacobian'' as two unrelated objects. The transition matrix $F_d$ describes how a small state error before propagation becomes a small state error after propagation:
+\begin{equation}
+\boxed{\delta\bm x_{k+1}\approx F_d\,\delta\bm x_k.}
+\end{equation}
+There are two useful derivation routes:
+\begin{align*}
+\text{continuous route: }&
+\text{true kinematics}
+\rightarrow \text{continuous error dynamics}
+\rightarrow F_c
+\rightarrow F_d,\\
+\text{discrete route: }&
+\text{discrete nominal propagation}
+\rightarrow \text{local perturbation}
+\rightarrow F_d.
+\end{align*}
+The \texttt{manif} Jacobians implement the second viewpoint naturally for Lie-group variables such as $R\in SO(3)$. For Euclidean variables such as $p$ and $v$, the same idea reduces to ordinary differentiation.
+
+\section{Implementation consistency note}
+If the discrete equations for $p_{k+1}$ and $v_{k+1}$ use the pre-propagation rotation $R_k$, their direct Jacobians should also be evaluated at $R_k$. Updating the stored rotation to $R_{k+1}$ before constructing those Jacobian blocks changes the linearization point and is not exactly the Jacobian of the discrete equations written above.
+
+\end{document}
