@@ -1176,6 +1176,21 @@ Collecting the results,
 
 \section{Discrete-Time ESKF Kinematic Equation}
 
+\subsection*{Notation convention}
+
+In the continuous-time derivations below, $t$, $\tau$, and $s$ denote
+physical time. After discretization, the final propagation equations
+use the discrete time-step indices $k$ and $k+1$, with
+\begin{equation}
+\boxed{
+t_k=t,\qquad t_{k+1}=t_k+\Delta t=t+\Delta t.
+}
+\end{equation}
+
+Thus, continuous-time integration uses $t,\tau,s$, while final
+discrete-time propagation equations use $k,k+1$.
+
+
 \subsection{Nominal-state position equation}
 
 For the nominal state,
@@ -1306,13 +1321,13 @@ R(t)(\tilde a(t)-b_a(t))+g
 Finally,
 \begin{equation}
 \boxed{
-p(t+\Delta t)
+p_{k+1}
 =
-p(t)+v(t)\Delta t
+p_k+v_k\Delta t
 +
-\frac12R(t)(\tilde a(t)-b_a(t))\Delta t^2
+\frac12R_k(\tilde a_k-b_{a,k})\Delta t^2
 +
-\frac12g\Delta t^2.
+\frac12g_k\Delta t^2.
 }
 \end{equation}
 
@@ -1376,13 +1391,13 @@ R(t)(\tilde a(t)-b_a(t))+g,
 gives
 \begin{equation}
 \boxed{
-v(t+\Delta t)
+v_{k+1}
 =
-v(t)
+v_k
 +
-R(t)(\tilde a(t)-b_a(t))\Delta t
+R_k(\tilde a_k-b_{a,k})\Delta t
 +
-g\Delta t.
+g_k\Delta t.
 }
 \end{equation}
 
@@ -1507,11 +1522,11 @@ Substituting
 gives the discrete-time nominal rotation propagation equation
 \begin{equation}
 \boxed{
-R(t+\Delta t)
+R_{k+1}
 =
-R(t)
+R_k
 \Exp\!\left(
-(\tilde\omega(t)-b_g(t))\Delta t
+(\tilde\omega_k-b_{g,k})\Delta t
 \right).
 }
 \end{equation}
@@ -1557,7 +1572,7 @@ b_g(t)
 gives
 \begin{equation}
 \boxed{
-b_g(t+\Delta t)=b_g(t).
+b_{g,k+1}=b_{g,k}.
 }
 \end{equation}
 
@@ -1572,7 +1587,7 @@ b_a(t)
 so
 \begin{equation}
 \boxed{
-b_a(t+\Delta t)=b_a(t).
+b_{a,k+1}=b_{a,k}.
 }
 \end{equation}
 
@@ -1587,7 +1602,7 @@ g(t)
 and therefore
 \begin{equation}
 \boxed{
-g(t+\Delta t)=g(t).
+g_{k+1}=g_k.
 }
 \end{equation}
 
@@ -1608,40 +1623,39 @@ Collecting the nominal-state propagation equations,
 \begin{equation}
 \boxed{
 \begin{aligned}
-p(t+\Delta t)
+p_{k+1}
 &=
-p(t)+v(t)\Delta t
+p_k+v_k\Delta t
 +\frac12
 \left[
-R(t)(\tilde a(t)-b_a(t))+g(t)
+R_k(\tilde a_k-b_{a,k})+g_k
 \right]\Delta t^2,
 \\[1mm]
-v(t+\Delta t)
+v_{k+1}
 &=
-v(t)
-+
+v_k+
 \left[
-R(t)(\tilde a(t)-b_a(t))+g(t)
+R_k(\tilde a_k-b_{a,k})+g_k
 \right]\Delta t,
 \\[1mm]
-R(t+\Delta t)
+R_{k+1}
 &=
-R(t)
+R_k
 \Exp\!\left(
-(\tilde\omega(t)-b_g(t))\Delta t
+(\tilde\omega_k-b_{g,k})\Delta t
 \right),
 \\[1mm]
-b_g(t+\Delta t)
+b_{g,k+1}
 &=
-b_g(t),
+b_{g,k},
 \\
-b_a(t+\Delta t)
+b_{a,k+1}
 &=
-b_a(t),
+b_{a,k},
 \\
-g(t+\Delta t)
+g_{k+1}
 &=
-g(t).
+g_k.
 \end{aligned}
 }
 \end{equation}
@@ -1672,9 +1686,9 @@ sampling interval $[t,t+\Delta t]$. Then
 Therefore,
 \begin{equation}
 \boxed{
-\delta p(t+\Delta t)
+\delta p_{k+1}
 =
-\delta p(t)+\delta v(t)\Delta t.
+\delta p_k+\delta v_k\Delta t.
 }
 \end{equation}
 
@@ -2089,9 +2103,9 @@ Define
 Then
 \begin{equation}
 \boxed{
-\delta b_g(t+\Delta t)
+\delta b_{g,k+1}
 =
-\delta b_g(t)+\eta_{bg,d}.
+\delta b_{g,k}+\eta_{bg,d}.
 }
 \end{equation}
 
@@ -2191,9 +2205,9 @@ integration gives
 Therefore
 \begin{equation}
 \boxed{
-\delta g(t+\Delta t)
+\delta g_{k+1}
 =
-\delta g(t).
+\delta g_k.
 }
 \end{equation}
 
@@ -2592,5 +2606,237 @@ Consequently, the explicit error-state mean propagation is often
 unnecessary in an implementation.  The important quantities propagated
 during the IMU prediction are the nominal state and the error-state
 covariance.
+
+
+\section{Update Process of ESKF}
+
+\subsection{Observation model}
+
+Consider the general observation equation
+\begin{equation}
+\boxed{
+z=h(x)+v,
+\qquad
+v\sim\mathcal N(0,V).
+}
+\end{equation}
+
+Here $z$ is the observation data, $v$ is the observation noise, and
+$V$ is the observation-noise covariance matrix.
+
+In a traditional EKF, the observation equation is linearized with
+respect to the state variables. In the ESKF, the Kalman-filter update
+is performed with respect to the error-state variables. Therefore, the
+required observation Jacobian is
+\begin{equation}
+\boxed{
+H
+=
+\left.
+\frac{\partial h}{\partial\delta x}
+\right|_{x_{\mathrm{pred}}}.
+}
+\end{equation}
+
+\subsection{Kalman update equations}
+
+Once the observation Jacobian is available, the Kalman gain is
+\begin{equation}
+\boxed{
+K
+=
+P_{\mathrm{pred}}H^T
+\left(
+HP_{\mathrm{pred}}H^T+V
+\right)^{-1}.
+}
+\end{equation}
+
+The error-state update is
+\begin{equation}
+\boxed{
+\delta x
+=
+K\left(
+z-h(x_{\mathrm{pred}})
+\right).
+}
+\end{equation}
+
+Following the notation used in this chapter, the nominal state is then
+updated as
+\begin{equation}
+\boxed{
+x=x_{\mathrm{pred}}+\delta x.
+}
+\end{equation}
+
+The covariance update is
+\begin{equation}
+\boxed{
+P=(I-KH)P_{\mathrm{pred}}.
+}
+\end{equation}
+
+Here $K$ is the Kalman gain, $P_{\mathrm{pred}}$ is the predicted
+error-state covariance, and $P$ is the updated covariance.
+
+\subsection{Observation Jacobian with respect to the error state}
+
+For observations of the nominal state, the Jacobian with respect to the
+error state can be obtained using the chain rule:
+\begin{equation}
+\boxed{
+H
+=
+\frac{\partial h}{\partial x}
+\frac{\partial x}{\partial\delta x}.
+}
+\end{equation}
+
+The chain of mappings is
+\[
+\boxed{
+\delta x
+\longrightarrow
+x(\delta x)
+\longrightarrow
+h\!\left(x(\delta x)\right).
+}
+\]
+
+Here $x(\delta x)$ denotes a local perturbation of the nominal state
+used for linearization. It should not be confused with the true state.
+
+\subsection{Local perturbation parameterization}
+
+For the nominal-state ordering
+\[
+x=
+\begin{bmatrix}
+p&
+v&
+R&
+b_g&
+b_a&
+g
+\end{bmatrix}^{T},
+\]
+define the locally perturbed state by
+\begin{equation}
+\boxed{
+x(\delta x)
+=
+\begin{bmatrix}
+p+\delta p\\
+v+\delta v\\
+R\Exp(\delta\theta)\\
+b_g+\delta b_g\\
+b_a+\delta b_a\\
+g+\delta g
+\end{bmatrix},
+\qquad
+x(0)=x_{\mathrm{pred}}.
+}
+\end{equation}
+
+For the Euclidean components,
+\[
+\frac{\partial(p+\delta p)}{\partial\delta p}=I_3,
+\qquad
+\frac{\partial(v+\delta v)}{\partial\delta v}=I_3,
+\]
+and similarly
+\[
+\frac{\partial(b_g+\delta b_g)}{\partial\delta b_g}=I_3,
+\qquad
+\frac{\partial(b_a+\delta b_a)}{\partial\delta b_a}=I_3,
+\qquad
+\frac{\partial(g+\delta g)}{\partial\delta g}=I_3.
+\]
+
+The rotation component requires special treatment. Since the
+perturbation is applied on the right,
+\[
+R(\delta\theta)=R\Exp(\delta\theta),
+\]
+and the corresponding rotation coordinate is
+\[
+\Log\!\left(R\Exp(\delta\theta)\right).
+\]
+
+Therefore,
+\begin{equation}
+\left.
+\frac{
+\partial
+\Log\!\left(R\Exp(\delta\theta)\right)
+}{
+\partial\delta\theta
+}
+\right|_{\delta\theta=0}
+=
+J_r^{-1}(\Log R).
+\end{equation}
+
+Consequently,
+\begin{equation}
+\boxed{
+\frac{\partial x}{\partial\delta x}
+=
+\operatorname{diag}
+\left(
+I_3,\,
+I_3,\,
+J_r^{-1}(\Log R),\,
+I_3,\,
+I_3,\,
+I_3
+\right).
+}
+\end{equation}
+
+\subsection{Full-pose GNSS observation}
+
+For the full-pose GNSS case, the observation contains position and
+rotation. With the nominal-state ordering above, the observation
+function is conceptually
+\begin{equation}
+\boxed{
+h(x)
+=
+\begin{bmatrix}
+p\\
+R
+\end{bmatrix}.
+}
+\end{equation}
+
+Thus the GNSS observation directly depends on the nominal position
+$p$ and nominal rotation $R$, while it does not directly observe
+$v$, $b_g$, $b_a$, or $g$.
+
+The next step is to evaluate
+\[
+\frac{\partial h}{\partial x}
+=
+\begin{bmatrix}
+\dfrac{\partial h}{\partial p}
+&
+\dfrac{\partial h}{\partial v}
+&
+\dfrac{\partial h}{\partial R}
+&
+\dfrac{\partial h}{\partial b_g}
+&
+\dfrac{\partial h}{\partial b_a}
+&
+\dfrac{\partial h}{\partial g}
+\end{bmatrix},
+\]
+and then combine it with
+$\partial x/\partial\delta x$. The treatment of the rotation
+observation and its relation to the direct error-state GNSS
+formulation is left for the following discussion.
 
 \end{document}
