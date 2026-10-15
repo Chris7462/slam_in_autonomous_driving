@@ -20,7 +20,7 @@
 \section{Notation and assumptions}
 We derive the three pre-integrated increments corresponding to the textbook's equations (4.7), starting from the discrete-time IMU kinematics (4.4) and their accumulated form (4.6). Unlike the textbook's constant sampling interval $\Delta t$, we allow unequal sample intervals:
 \begin{equation}
-\boxed{\Delta t_k=t_{k+1}-t_k,\qquad T_{ij}\defeq\Delta t_{ij}=t_j-t_i=\sum_{k=i}^{j-1}\Delta t_k.}
+\boxed{\Delta t_k=t_{k+1}-t_k,\qquad \Delta t_{ij}=t_j-t_i=\sum_{k=i}^{j-1}\Delta t_k.}
 \end{equation}
 We assume $R_k\in\SO(3)$ maps body-frame vectors to world-frame vectors, $p_k,v_k,g\in\R^3$ are world-frame quantities, gravity $g$ is constant over the interval, and the bias/noise terms are represented by $b_{g,k},b_{a,k},\eta_{gd,k},\eta_{ad,k}$. The IMU measurements are $\tilde\omega_k$ and $\tilde a_k$. We use a zero-order-hold approximation over each sample interval for the corrected acceleration and angular velocity. All products of rotations are \emph{time ordered}.
 
@@ -62,26 +62,26 @@ Summing \eqref{eq:step}b from $k=i$ to $j-1$ gives a telescoping sum on the left
 v_j-v_i
 &=\sum_{k=i}^{j-1}(v_{k+1}-v_k)\notag\\
 &=\sum_{k=i}^{j-1}g\Delta t_k+\sum_{k=i}^{j-1}R_k\alpha_k\Delta t_k\notag\\
-&=gT_{ij}+\sum_{k=i}^{j-1}R_k\alpha_k\Delta t_k.
+&=g\Delta t_{ij}+\sum_{k=i}^{j-1}R_k\alpha_k\Delta t_k.
 \end{align}
 Substitute $R_k=R_i\Delta R_{ik}$ from \eqref{eq:Rk}:
 \begin{align}
-v_j-v_i-gT_{ij}
+v_j-v_i-g\Delta t_{ij}
 &=\sum_{k=i}^{j-1}R_i\Delta R_{ik}\alpha_k\Delta t_k\notag\\
 &=R_i\sum_{k=i}^{j-1}\Delta R_{ik}\alpha_k\Delta t_k.
 \end{align}
 Left-multiply by $R_i^T$:
 \begin{equation}\label{eq:dv}
 \boxed{\begin{aligned}
-\Delta v_{ij}&\defeq R_i^T(v_j-v_i-gT_{ij})\\
+\Delta v_{ij}&\defeq R_i^T(v_j-v_i-g\Delta t_{ij})\\
 &=\sum_{k=i}^{j-1}\Delta R_{ik}(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k.
 \end{aligned}}
 \end{equation}
 In particular, for any intermediate $k$,
 \begin{equation}\label{eq:vk}
-\Delta v_{ik}=R_i^T(v_k-v_i-gT_{ik})
+\Delta v_{ik}=R_i^T(v_k-v_i-g\Delta t_{ik})
 \quad\Longrightarrow\quad
-v_k=v_i+gT_{ik}+R_i\Delta v_{ik}.
+v_k=v_i+g\Delta t_{ik}+R_i\Delta v_{ik}.
 \end{equation}
 Thus $\Delta v_{ij}$ is \emph{not} simply $v_j-v_i$: it removes gravity's contribution and expresses the result in the starting body frame.
 
@@ -99,38 +99,38 @@ Unlike the velocity case, the first sum contains intermediate velocities $v_k$. 
 \subsection{Substitute the intermediate velocity}
 \begin{align}
 \sum_{k=i}^{j-1}v_k\Delta t_k
-&=\sum_{k=i}^{j-1}(v_i+gT_{ik}+R_i\Delta v_{ik})\Delta t_k\notag\\
-&=v_iT_{ij}+g\sum_{k=i}^{j-1}T_{ik}\Delta t_k
+&=\sum_{k=i}^{j-1}(v_i+g\Delta t_{ik}+R_i\Delta v_{ik})\Delta t_k\notag\\
+&=v_i\Delta t_{ij}+g\sum_{k=i}^{j-1}\Delta t_{ik}\Delta t_k
 +R_i\sum_{k=i}^{j-1}\Delta v_{ik}\Delta t_k.
 \end{align}
 Insert this into \eqref{eq:pacc}:
 \begin{align}
 p_j-p_i
-&=v_iT_{ij}
-+g\left[\sum_{k=i}^{j-1}T_{ik}\Delta t_k+\tfrac12\sum_{k=i}^{j-1}\Delta t_k^2\right]\notag\\
+&=v_i\Delta t_{ij}
++g\left[\sum_{k=i}^{j-1}\Delta t_{ik}\Delta t_k+\tfrac12\sum_{k=i}^{j-1}\Delta t_k^2\right]\notag\\
 &\quad+R_i\sum_{k=i}^{j-1}\Delta v_{ik}\Delta t_k
 +\tfrac12\sum_{k=i}^{j-1}R_k\alpha_k\Delta t_k^2.
 \label{eq:pintermediate}
 \end{align}
 
 \subsection{Combine gravity terms using a telescoping sum}
-Since $T_{i,k+1}=T_{ik}+\Delta t_k$,
+Since $\Delta t_{i,k+1}=\Delta t_{ik}+\Delta t_k$,
 \begin{align}
-T_{i,k+1}^2-T_{ik}^2
-&=(T_{ik}+\Delta t_k)^2-T_{ik}^2\notag\\
-&=2T_{ik}\Delta t_k+\Delta t_k^2.
+\Delta t_{i,k+1}^2-\Delta t_{ik}^2
+&=(\Delta t_{ik}+\Delta t_k)^2-\Delta t_{ik}^2\notag\\
+&=2\Delta t_{ik}\Delta t_k+\Delta t_k^2.
 \end{align}
 Therefore
 \begin{equation}
-T_{ik}\Delta t_k+\tfrac12\Delta t_k^2
-=\tfrac12(T_{i,k+1}^2-T_{ik}^2).
+\Delta t_{ik}\Delta t_k+\tfrac12\Delta t_k^2
+=\tfrac12(\Delta t_{i,k+1}^2-\Delta t_{ik}^2).
 \end{equation}
 Sum over all intervals:
 \begin{align}
-\sum_{k=i}^{j-1}\left(T_{ik}\Delta t_k+\tfrac12\Delta t_k^2\right)
-&=\tfrac12\sum_{k=i}^{j-1}(T_{i,k+1}^2-T_{ik}^2)\notag\\
-&=\tfrac12(T_{ij}^2-T_{ii}^2)\notag\\
-&=\boxed{\tfrac12T_{ij}^2},\qquad T_{ii}=0.
+\sum_{k=i}^{j-1}\left(\Delta t_{ik}\Delta t_k+\tfrac12\Delta t_k^2\right)
+&=\tfrac12\sum_{k=i}^{j-1}(\Delta t_{i,k+1}^2-\Delta t_{ik}^2)\notag\\
+&=\tfrac12(\Delta t_{ij}^2-\Delta t_{ii}^2)\notag\\
+&=\boxed{\tfrac12\Delta t_{ij}^2},\qquad \Delta t_{ii}=0.
 \end{align}
 This identity holds even when the $\Delta t_k$ are unequal.
 
@@ -138,27 +138,27 @@ This identity holds even when the $\Delta t_k$ are unequal.
 Using $R_k=R_i\Delta R_{ik}$ in \eqref{eq:pintermediate}, and combining the gravity terms, yields
 \begin{align}
 p_j-p_i
-&=v_iT_{ij}+\tfrac12gT_{ij}^2\notag\\
+&=v_i\Delta t_{ij}+\tfrac12g\Delta t_{ij}^2\notag\\
 &\quad+R_i\sum_{k=i}^{j-1}\left[\Delta v_{ik}\Delta t_k+\tfrac12\Delta R_{ik}\alpha_k\Delta t_k^2\right].
 \end{align}
 Move the initial-state terms to the left and multiply by $R_i^T$:
 \begin{equation}\label{eq:dp}
 \boxed{\begin{aligned}
-\Delta p_{ij}&\defeq R_i^T\left(p_j-p_i-v_iT_{ij}-\tfrac12gT_{ij}^2\right)\\
+\Delta p_{ij}&\defeq R_i^T\left(p_j-p_i-v_i\Delta t_{ij}-\tfrac12g\Delta t_{ij}^2\right)\\
 &=\sum_{k=i}^{j-1}\left[\Delta v_{ik}\Delta t_k+\tfrac12\Delta R_{ik}(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k^2\right].
 \end{aligned}}
 \end{equation}
 Here $\Delta v_{ik}$ is the \emph{pre-integrated} velocity increment from $i$ to $k$, not the world-frame velocity $v_k$. Its use removes dependence on the initial velocity $v_i$ and initial rotation $R_i$ from the sum.
 
 \section{Summary of the three increments}
-Let $T_{ij}=\sum_{k=i}^{j-1}\Delta t_k$. The pre-integrated quantities are
+Recall $\Delta t_{ij}=\sum_{k=i}^{j-1}\Delta t_k$. The pre-integrated quantities are
 \begin{subequations}\label{eq:summary}
 \begin{align}
 \boxed{\Delta R_{ij}}&=R_i^TR_j
 =\prod_{k=i}^{j-1}\Exp\!\left((\tilde\omega_k-b_{g,k}-\eta_{gd,k})\Delta t_k\right),\\
-\boxed{\Delta v_{ij}}&=R_i^T(v_j-v_i-gT_{ij})
+\boxed{\Delta v_{ij}}&=R_i^T(v_j-v_i-g\Delta t_{ij})
 =\sum_{k=i}^{j-1}\Delta R_{ik}\alpha_k\Delta t_k,\\
-\boxed{\Delta p_{ij}}&=R_i^T\left(p_j-p_i-v_iT_{ij}-\tfrac12gT_{ij}^2\right)
+\boxed{\Delta p_{ij}}&=R_i^T\left(p_j-p_i-v_i\Delta t_{ij}-\tfrac12g\Delta t_{ij}^2\right)
 =\sum_{k=i}^{j-1}\left(\Delta v_{ik}\Delta t_k+\tfrac12\Delta R_{ik}\alpha_k\Delta t_k^2\right).
 \end{align}
 \end{subequations}
@@ -168,7 +168,7 @@ All three right-hand expressions depend on IMU measurements, biases, noise, and 
 \begin{enumerate}[leftmargin=*]
 \item $\Delta R_{ij}$ is a relative rotation. $\Delta v_{ij}$ and $\Delta p_{ij}$ are gravity-compensated increments expressed in the frame at $i$; they are not simply $v_j-v_i$ and $p_j-p_i$.
 \item Initialization at $k=i$ is $\Delta R_{ii}=I_3$, $\Delta v_{ii}=0$, and $\Delta p_{ii}=0$.
-\item For unequal sample intervals, replace every single-step $\Delta t$ by $\Delta t_k$, while the accumulated duration is $T_{ij}$.
+\item For unequal sample intervals, replace every single-step $\Delta t$ by $\Delta t_k$, while the accumulated duration is $\Delta t_{ij}$.
 \item These are the \emph{noise-containing} relative increments of the textbook's definition. Later, the chapter separates noisy quantities from pre-integrated measurements denoted with a tilde and derives their covariance.
 \end{enumerate}
 
@@ -343,10 +343,10 @@ increments yields the textbook's three measurement relations through (4.18):
 \boxed{\Delta\tilde R_{ij}}
 &\simeq R_i^TR_j\Exp(\delta\phi_{ij}),\\
 \boxed{\Delta\tilde v_{ij}}
-&\simeq R_i^T(v_j-v_i-gT_{ij})+\delta v_{ij},\\
+&\simeq R_i^T(v_j-v_i-g\Delta t_{ij})+\delta v_{ij},\\
 \boxed{\Delta\tilde p_{ij}}
-&\simeq R_i^T\left(p_j-p_i-v_iT_{ij}
--\tfrac12gT_{ij}^2\right)+\delta p_{ij}.
+&\simeq R_i^T\left(p_j-p_i-v_i\Delta t_{ij}
+-\tfrac12g\Delta t_{ij}^2\right)+\delta p_{ij}.
 \end{align}
 \end{subequations}
 The positive sign in the rotation measurement is consistent with
@@ -1111,7 +1111,7 @@ at the current iterate. If $\delta b_g=0$, then $J_{r,b}=I_3$.
 \subsection{Velocity residual Jacobians}
 Define the state-predicted relative velocity
 \begin{equation}
-q_v\defeq R_i^T(v_j-v_i-gT_{ij}),\qquad
+q_v\defeq R_i^T(v_j-v_i-g\Delta t_{ij}),\qquad
 r_{\Delta v_{ij}}=q_v-\Delta\tilde v_{ij}.
 \end{equation}
 At fixed pre-integrated measurement and fixed other states,
@@ -1142,15 +1142,15 @@ enter with negative signs:
 \subsection{Position residual Jacobians}
 Let
 \begin{equation}
-q_p\defeq R_i^T\left(p_j-p_i-v_iT_{ij}
--\tfrac12gT_{ij}^2\right),\qquad
+q_p\defeq R_i^T\left(p_j-p_i-v_i\Delta t_{ij}
+-\tfrac12g\Delta t_{ij}^2\right),\qquad
 r_{\Delta p_{ij}}=q_p-\Delta\tilde p_{ij}.
 \end{equation}
 The Euclidean derivatives are
 \begin{align}
 \frac{\partial r_{\Delta p_{ij}}}{\partial p_i}&=-R_i^T,&
 \frac{\partial r_{\Delta p_{ij}}}{\partial p_j}&=R_i^T,&
-\frac{\partial r_{\Delta p_{ij}}}{\partial v_i}&=-R_i^TT_{ij}.
+\frac{\partial r_{\Delta p_{ij}}}{\partial v_i}&=-R_i^T\Delta t_{ij}.
 \end{align}
 Under $R_i'=R_i\Exp(\phi_i)$, the same first-order expansion gives
 \begin{align}
@@ -1197,7 +1197,7 @@ J_v=\begin{bmatrix}
 q_v^\wedge&0&-R_i^T&-J_{v,b_g}^{ij}&-J_{v,b_a}^{ij}&0&0&R_i^T
 \end{bmatrix},\\[1mm]
 J_p=\begin{bmatrix}
-q_p^\wedge&-R_i^T&-R_i^TT_{ij}&-J_{p,b_g}^{ij}&-J_{p,b_a}^{ij}&0&R_i^T&0
+q_p^\wedge&-R_i^T&-R_i^T\Delta t_{ij}&-J_{p,b_g}^{ij}&-J_{p,b_a}^{ij}&0&R_i^T&0
 \end{bmatrix}.
 \end{gathered}}
 \end{equation}
