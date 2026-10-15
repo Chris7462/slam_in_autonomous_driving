@@ -2610,6 +2610,88 @@ covariance.
 
 \section{Update Process of ESKF}
 
+\subsection{ESKF update flow}
+
+The ESKF update process can be summarized as
+\[
+\boxed{
+\begin{array}{c}
+\text{New sensor observation }z
+\\[2mm]
+\downarrow
+\\[2mm]
+\text{Construct the observation model}
+\\
+z=h(x)+v,\qquad v\sim\mathcal N(0,V)
+\\[2mm]
+\downarrow
+\\[2mm]
+\text{Compute the observation Jacobian }H
+\\
+H=\dfrac{\partial h}{\partial\delta x}
+\\[2mm]
+\downarrow
+\\[2mm]
+\text{Compute the innovation}
+\\
+r=z-h(x_{\mathrm{pred}})
+\\[2mm]
+\downarrow
+\\[2mm]
+\text{Compute the Kalman gain}
+\\
+K=P_{\mathrm{pred}}H^T
+\left(
+HP_{\mathrm{pred}}H^T+V
+\right)^{-1}
+\\[2mm]
+\downarrow
+\\[2mm]
+\text{Estimate the error state}
+\\
+\delta x=Kr
+\\[2mm]
+\downarrow
+\\[2mm]
+\text{Update the error-state covariance}
+\\
+P=(I-KH)P_{\mathrm{pred}}
+\\[2mm]
+\downarrow
+\\[2mm]
+\text{Pass }(\delta x,P)\text{ to ESKF post-processing}
+\end{array}
+}
+\]
+
+Thus, the observation update itself estimates the posterior error state
+and its covariance.  The estimated error state is not yet the final
+nominal-state correction at this stage.  The following post-processing
+stage injects $\delta x$ into the nominal state, resets the error-state
+mean to zero, and, when retained, transforms the covariance to the new
+tangent-space reference.
+
+For the full-pose GNSS implementation discussed below, the innovation
+takes the manifold-aware form
+\[
+r_{\mathrm{GNSS}}
+=
+\begin{bmatrix}
+p_{\mathrm{gnss}}-p\\
+\Log(R^TR_{\mathrm{gnss}})
+\end{bmatrix},
+\]
+and the direct error-state observation gives
+\[
+H_{\mathrm{GNSS}}
+=
+\begin{bmatrix}
+I_3&0&0&0&0&0\\
+0&0&I_3&0&0&0
+\end{bmatrix}.
+\]
+
+
 \subsection{Observation model}
 
 Consider the general observation equation
@@ -2796,6 +2878,95 @@ I_3
 }
 \end{equation}
 
+
+\subsubsection*{Rotation block: chain-rule derivation}
+
+The rotation block can also be derived by explicitly applying the
+chain rule to the composition
+\[
+\delta\theta
+\longrightarrow
+\Exp(\delta\theta)
+\longrightarrow
+R\Exp(\delta\theta)
+\longrightarrow
+\Log\!\left(R\Exp(\delta\theta)\right).
+\]
+Therefore,
+\begin{equation}
+\frac{\partial\Log(R\Exp(\delta\theta))}{\partial\delta\theta}
+=
+J^{\Log(R\Exp(\delta\theta))}_{R\Exp(\delta\theta)}
+\,
+J^{R\Exp(\delta\theta)}_{\Exp(\delta\theta)}
+\,
+J^{\Exp(\delta\theta)}_{\delta\theta}.
+\end{equation}
+
+Using the right-trivialized Jacobians,
+\[
+J^{\Log(Q)}_{Q}=J_r^{-1}(\Log Q),
+\qquad
+J^{R Q}_{Q}=I_3,
+\qquad
+J^{\Exp(\delta\theta)}_{\delta\theta}=J_r(\delta\theta),
+\]
+we obtain
+\begin{equation}
+\frac{\partial\Log(R\Exp(\delta\theta))}{\partial\delta\theta}
+=
+J_r^{-1}\!\left(\Log(R\Exp(\delta\theta))\right)
+J_r(\delta\theta).
+\end{equation}
+
+Evaluating at $\delta\theta=0$ and using
+\[
+\Exp(0)=I_3,
+\qquad
+J_r(0)=I_3,
+\]
+gives
+\begin{equation}
+\boxed{
+\left.
+\frac{\partial\Log(R\Exp(\delta\theta))}{\partial\delta\theta}
+\right|_{\delta\theta=0}
+=
+J_r^{-1}(\Log R).
+}
+\end{equation}
+
+\subsubsection*{Rotation block: BCH result}
+
+Let
+\[
+\phi=\Log R,
+\qquad
+R=\Exp(\phi).
+\]
+Using the textbook right-BCH linear approximation,
+\begin{equation}
+\boxed{
+\Log\!\left(\Exp(\phi)\Exp(\delta\theta)\right)
+\approx
+\phi+J_r^{-1}(\phi)\delta\theta.
+}
+\end{equation}
+Since $R=\Exp(\phi)$ and $\phi=\Log R$,
+\begin{equation}
+\boxed{
+\left.
+\frac{\partial\Log(R\Exp(\delta\theta))}
+{\partial\delta\theta}
+\right|_{\delta\theta=0}
+=
+J_r^{-1}(\Log R).
+}
+\end{equation}
+
+The full BCH-series derivation is collected in the appendix.
+
+
 \subsection{Full-pose GNSS observation}
 
 For the full-pose GNSS case, the observation contains position and
@@ -2838,5 +3009,608 @@ and then combine it with
 $\partial x/\partial\delta x$. The treatment of the rotation
 observation and its relation to the direct error-state GNSS
 formulation is left for the following discussion.
+
+
+
+\subsubsection*{Two observation formulations}
+
+For the full-pose GNSS update, the position observation is
+straightforward.  The rotation observation, however, can be formulated
+in two different ways.
+
+\subsubsection*{General chain-rule formulation}
+
+If the GNSS rotation is represented in Lie-algebra coordinates, define
+\[
+\phi=\Log R,
+\qquad
+\phi_{\mathrm{gnss}}=\Log R_{\mathrm{gnss}}.
+\]
+The nominal-state observation function can then be written as
+\begin{equation}
+\boxed{
+h(x)
+=
+\begin{bmatrix}
+p\\
+\Log R
+\end{bmatrix}.
+}
+\end{equation}
+
+With the nominal-state ordering
+\[
+x=
+\begin{bmatrix}
+p&v&R&b_g&b_a&g
+\end{bmatrix}^{T},
+\]
+the observation Jacobian with respect to the nominal-state coordinates
+selects the position and rotation components:
+\begin{equation}
+\boxed{
+\frac{\partial h}{\partial x}
+=
+\begin{bmatrix}
+I_3&0&0&0&0&0\\
+0&0&I_3&0&0&0
+\end{bmatrix}.
+}
+\end{equation}
+
+From the local perturbation derivation above,
+\[
+\frac{\partial x}{\partial\delta x}
+=
+\operatorname{diag}
+\left(
+I_3,\,
+I_3,\,
+J_r^{-1}(\Log R),\,
+I_3,\,
+I_3,\,
+I_3
+\right).
+\]
+Therefore,
+\begin{equation}
+\boxed{
+H_{\mathrm{chain}}
+=
+\frac{\partial h}{\partial x}
+\frac{\partial x}{\partial\delta x}
+=
+\begin{bmatrix}
+I_3&0&0&0&0&0\\
+0&0&J_r^{-1}(\Log R)&0&0&0
+\end{bmatrix}.
+}
+\end{equation}
+
+In this formulation, the rotation innovation is represented in
+Lie-algebra coordinates as
+\[
+\Log R_{\mathrm{gnss}}-\Log R.
+\]
+
+\subsubsection*{Direct error-state observation for GNSS rotation}
+
+For the GNSS implementation, a more natural formulation is available
+because the ESKF rotation error is defined by right multiplication:
+\begin{equation}
+\boxed{
+R_{\mathrm{gnss}}
+=
+R\Exp(\delta\theta).
+}
+\end{equation}
+
+Left-multiplying by $R^T$ gives
+\[
+R^TR_{\mathrm{gnss}}
+=
+\Exp(\delta\theta).
+\]
+Taking the logarithm yields
+\begin{equation}
+\boxed{
+z_{\delta\theta}
+=
+\Log(R^TR_{\mathrm{gnss}})
+=
+\delta\theta.
+}
+\end{equation}
+
+Thus the GNSS rotation is a direct observation of the rotation error
+state, and its Jacobian is simply
+\begin{equation}
+\boxed{
+\frac{\partial z_{\delta\theta}}
+{\partial\delta\theta}
+=
+I_3.
+}
+\end{equation}
+
+The position observation is similarly
+\[
+p_{\mathrm{gnss}}
+=
+p+\delta p,
+\]
+so
+\[
+\frac{\partial p_{\mathrm{gnss}}}{\partial\delta p}
+=
+I_3.
+\]
+
+Consequently, the full-pose GNSS observation Jacobian used in the
+implementation is
+\begin{equation}
+\boxed{
+H_{\mathrm{GNSS}}
+=
+\begin{bmatrix}
+I_3&0&0&0&0&0\\
+0&0&I_3&0&0&0
+\end{bmatrix}.
+}
+\end{equation}
+
+The corresponding innovation is
+\begin{equation}
+\boxed{
+z-h(x_{\mathrm{pred}})
+=
+\begin{bmatrix}
+p_{\mathrm{gnss}}-p\\
+\Log(R^TR_{\mathrm{gnss}})
+\end{bmatrix}.
+}
+\end{equation}
+
+\subsubsection*{Which formulation is used?}
+
+The general chain-rule formulation is mathematically valid when the
+rotation observation is represented using the coordinate
+$\Log R$.  In that case, the rotation Jacobian contains
+$J_r^{-1}(\Log R)$.
+
+For the full-pose GNSS update, however, the direct error-state
+formulation is preferable because
+\[
+\Log(R^TR_{\mathrm{gnss}})
+\]
+is the relative rotation from the nominal estimate to the GNSS
+observation and is exactly aligned with the right rotation error
+$\delta\theta$.  Therefore the implementation uses
+\[
+\boxed{
+H_R=I_3
+}
+\]
+rather than approximating $J_r^{-1}(\Log R)$ by the identity.  The two
+forms correspond to different observation representations; the
+identity block is not obtained by discarding the right-Jacobian term.
+
+
+\subsection{Body-frame 3D Wheel Velocity Observation}
+
+\subsubsection*{Observation model}
+
+The wheel encoder directly measures the forward body-frame speed. To form a
+three-dimensional body-frame observation, we additionally impose approximate
+zero lateral and vertical body velocities as vehicle-motion constraints:
+\begin{equation}
+\boxed{
+ z_b=\begin{bmatrix}v_{\mathrm{wheel}}&0&0\end{bmatrix}^{T},
+ \qquad z_b=h(x)+n_b,\qquad n_b\sim\mathcal N(0,V_b).
+}
+\end{equation}
+The last two components are pseudo-measurements, not independent readings
+from the wheel encoder. With $R$ mapping body coordinates into world
+coordinates and $v$ denoting world-frame velocity, the observation function is
+\begin{equation}
+\boxed{h(x)=R^Tv.}
+\end{equation}
+The ESKF error state is ordered as
+$\delta x=[\delta p^T,\delta v^T,\delta\theta^T,
+\delta b_g^T,\delta b_a^T,\delta g^T]^T$.
+
+\subsubsection*{Velocity Jacobian}
+
+With $v(\delta v)=v+\delta v$, keeping $R$ fixed,
+\[
+ h(\delta v)=R^T(v+\delta v)=R^Tv+R^T\delta v.
+\]
+Consequently,
+\begin{equation}
+\boxed{\left.\frac{\partial h}{\partial\delta v}\right|_{\delta v=0}=R^T.}
+\end{equation}
+
+\subsubsection*{Rotation Jacobian: Method 1 --- first-order expansion}
+
+Using the right perturbation $R(\delta\theta)=R\Exp(\delta\theta)$,
+\[
+ h(\delta x)
+ =\bigl(R\Exp(\delta\theta)\bigr)^T(v+\delta v)
+ =\Exp(-\delta\theta)R^T(v+\delta v).
+\]
+The first-order exponential approximation is
+$\Exp(-\delta\theta)\approx I-\delta\theta^\wedge$.
+Neglecting the second-order product $\delta\theta^\wedge R^T\delta v$,
+\begin{align}
+ h(\delta x)
+ &\approx (I-\delta\theta^\wedge)(R^Tv+R^T\delta v)\\
+ &\approx R^Tv+R^T\delta v-\delta\theta^\wedge R^Tv\\
+ &=R^Tv+R^T\delta v+(R^Tv)^\wedge\delta\theta.
+\end{align}
+We used $-a^\wedge b=b^\wedge a$. Thus,
+\begin{equation}
+\boxed{
+\left.\frac{\partial h}{\partial\delta\theta}\right|_{\delta\theta=0}
+ =(R^Tv)^\wedge.
+}
+\end{equation}
+
+\subsubsection*{Rotation Jacobian: Method 2 --- directly from the limit definition}
+
+Fix the nominal $R,v$ and let $u\in\mathbb R^3$ be an arbitrary
+direction. The directional derivative at zero perturbation is
+\begin{align}
+ Dh(0)[u]
+ &=\lim_{\epsilon\to0}
+ \frac{\Exp(-\epsilon u)R^Tv-R^Tv}{\epsilon}\\
+ &=\left(\lim_{\epsilon\to0}
+ \frac{\Exp(-\epsilon u)-I}{\epsilon}\right)R^Tv\\
+ &=-u^\wedge R^Tv\\
+ &=(R^Tv)^\wedge u.
+\end{align}
+The limit in the second line equals $-u^\wedge$ by the definition
+of the differential of the exponential map at the identity.
+Because $u$ is arbitrary, the linear map is represented by
+\begin{equation}
+\boxed{
+\left.\frac{\partial h}{\partial\delta\theta}\right|_{\delta\theta=0}
+ =(R^Tv)^\wedge.
+}
+\end{equation}
+Both methods therefore give the same sign and the same rotation block.
+
+\subsubsection*{Complete error-state observation Jacobian}
+
+The observation has no direct dependence on position, IMU biases, or gravity.
+Collecting the six $3\times3$ blocks gives
+\begin{equation}
+\boxed{
+H_b=\begin{bmatrix}
+0_{3\times3}&R^T&(R^Tv)^\wedge&0_{3\times3}&0_{3\times3}&0_{3\times3}
+\end{bmatrix}\in\mathbb R^{3\times18}.
+}
+\end{equation}
+
+\subsubsection*{Measurement covariance and Kalman update}
+
+We distinguish the uncertainty of the measured longitudinal wheel speed
+from the uncertainty of the lateral and vertical motion constraints:
+\begin{equation}
+\boxed{V_b=\operatorname{diag}(\sigma_x^2,\sigma_y^2,\sigma_z^2).}
+\end{equation}
+The values $\sigma_y^2$ and $\sigma_z^2$ express confidence in the
+pseudo-measurements; they should be relaxed when sideslip, uneven ground,
+or other violations of the zero-velocity assumptions are plausible.
+
+The innovation and Kalman update are
+\begin{align}
+ r_b&=z_b-R^Tv,\\
+ K&=P_{\mathrm{pred}}H_b^T
+ (H_bP_{\mathrm{pred}}H_b^T+V_b)^{-1},\\
+ \delta x&=Kr_b,\\
+ P&=(I-KH_b)P_{\mathrm{pred}}.
+\end{align}
+The estimated correction and covariance are then passed to the
+post-processing stage for nominal-state injection and reset.
+
+\subsubsection*{Comparison with the textbook's world-frame simplification}
+
+The textbook first rotates the wheel-speed vector into world coordinates,
+$z_w=Rv_{\mathrm{wheel}}$, and then treats that converted observation as
+fixed while using $h_w(x)=v$. This gives
+\[
+ H_{\mathrm{book}}=\begin{bmatrix}0&I_3&0&0&0&0\end{bmatrix}.
+\]
+Here we instead retain the body-frame measurement model $h(x)=R^Tv$,
+which explicitly accounts for both velocity and rotation perturbations.
+These are different observation formulations, not an algebraic correction
+to the textbook. The body-frame model also makes clear that the two
+zero-valued components are modeling constraints rather than encoder
+measurements.
+
+\section{Post-Processing of ESKF Error State}
+
+After the prediction and observation-update processes, the Kalman
+filter has obtained an estimate of the error state.  The remaining
+steps are to inject this estimated error into the nominal state and
+then reset the ESKF error state.
+
+\subsection{Error-state injection into the nominal state}
+
+Let the estimated error-state correction be
+\[
+\delta x_k
+=
+\begin{bmatrix}
+\delta p_k&
+\delta v_k&
+\delta\theta_k&
+\delta b_{g,k}&
+\delta b_{a,k}&
+\delta g_k
+\end{bmatrix}^{T}.
+\]
+The nominal state is corrected component by component:
+\begin{equation}
+\boxed{
+\begin{aligned}
+p_{k+1} &= p_k+\delta p_k,\\
+v_{k+1} &= v_k+\delta v_k,\\
+R_{k+1} &= R_k\Exp(\delta\theta_k),\\
+b_{g,k+1} &= b_{g,k}+\delta b_{g,k},\\
+b_{a,k+1} &= b_{a,k}+\delta b_{a,k},\\
+g_{k+1} &= g_k+\delta g_k.
+\end{aligned}
+}
+\end{equation}
+
+The rotation correction is applied through the exponential map rather
+than ordinary matrix addition.
+
+\subsection{Error-state mean reset}
+
+Once the estimated error has been injected into the nominal state, the
+error-state mean is reset:
+\begin{equation}
+\boxed{
+\delta x^+=0.
+}
+\end{equation}
+
+The estimated error has not been discarded; it has already been
+absorbed into the corrected nominal state.  The reset simply makes the
+corrected nominal state the new reference point for the next ESKF
+cycle.
+
+\subsection{Covariance reset and change of tangent space}
+
+Before the reset, the covariance $P$ describes the error distribution
+in the tangent space associated with the old nominal state.  After the
+nominal state is corrected, the error state is defined relative to a
+new reference point.  For Euclidean state components this change does
+not introduce an additional transformation, but the rotation component
+requires special treatment.
+
+Let $R_k$ be the nominal rotation before injection, and let
+$\delta\theta_k$ be the estimated rotation correction obtained from the
+Kalman update.  After injection,
+\begin{equation}
+\boxed{
+R^+
+=
+R_k\Exp(\delta\theta_k).
+}
+\end{equation}
+
+Let $\delta\theta$ denote a rotation-error random variable expressed
+relative to the old nominal rotation, and let $\delta\theta^+$ denote
+the same rotation uncertainty expressed relative to the new nominal
+rotation.  Both descriptions must represent the same physical
+rotation:
+\begin{equation}
+\boxed{
+R^+\Exp(\delta\theta^+)
+=
+R_k\Exp(\delta\theta).
+}
+\end{equation}
+
+Substituting $R^+=R_k\Exp(\delta\theta_k)$ gives
+\[
+R_k\Exp(\delta\theta_k)\Exp(\delta\theta^+)
+=
+R_k\Exp(\delta\theta).
+\]
+Canceling $R_k$ and left-multiplying by
+$\Exp(-\delta\theta_k)$ yields
+\begin{equation}
+\boxed{
+\Exp(\delta\theta^+)
+=
+\Exp(-\delta\theta_k)\Exp(\delta\theta).
+}
+\end{equation}
+
+Using the linearized BCH formula for small $\delta\theta$,
+\begin{equation}
+\boxed{
+\delta\theta^+
+\approx
+-\delta\theta_k
++\delta\theta
+-\frac{1}{2}\delta\theta_k^\wedge\delta\theta.
+}
+\end{equation}
+
+Therefore the reset Jacobian for the rotation-error component is
+\begin{equation}
+\boxed{
+J_\theta
+\triangleq
+\frac{\partial\delta\theta^+}{\partial\delta\theta}
+\approx
+I_3-\frac{1}{2}\delta\theta_k^\wedge.
+}
+\end{equation}
+
+Extending this transformation to the complete error state gives
+\begin{equation}
+\boxed{
+J_k
+=
+\operatorname{diag}
+\left(
+I_3,\,
+I_3,\,
+J_\theta,\,
+I_3,\,
+I_3,\,
+I_3
+\right).
+}
+\end{equation}
+
+The covariance must therefore be transformed to the tangent space of
+the corrected nominal state:
+\begin{equation}
+\boxed{
+P_{\mathrm{reset}}
+=
+J_k P J_k^T.
+}
+\end{equation}
+
+\subsection{Interpretation}
+
+The post-processing stage can be summarized as
+\[
+\boxed{
+\begin{array}{c}
+\text{Kalman update estimates }\delta x_k
+\\[1mm]
+\downarrow
+\\[1mm]
+\text{Inject }\delta x_k\text{ into the nominal state}
+\\[1mm]
+\downarrow
+\\[1mm]
+\delta x^+\leftarrow 0
+\\[1mm]
+\downarrow
+\\[1mm]
+P_{\mathrm{reset}}=J_kPJ_k^T.
+\end{array}
+}
+\]
+
+The covariance-reset operation is a change of tangent-space reference:
+the Gaussian error distribution is re-expressed around the corrected
+nominal state.  Since $\delta\theta_k$ is normally small,
+\[
+J_\theta
+=
+I_3-\frac12\delta\theta_k^\wedge
+\approx I_3,
+\]
+so many ESKF implementations neglect this small correction and use
+$P_{\mathrm{reset}}\approx P$.  Nevertheless, the reset Jacobian makes
+the tangent-space transformation explicit.
+
+\appendix
+
+\section{Detailed BCH Derivation for the Rotation Observation Jacobian}
+
+For completeness, this appendix derives the right-BCH linear
+approximation used in the update-process section.
+
+Let
+\[
+\phi=\Log R,
+\qquad
+R=\Exp(\phi).
+\]
+Then
+\[
+\Log\!\left(R\Exp(\delta\theta)\right)
+=
+\Log\!\left(\Exp(\phi)\Exp(\delta\theta)\right).
+\]
+
+The BCH series gives
+\[
+\log(e^Ae^B)
+=
+A+B+\frac12[A,B]
++\frac1{12}[A,[A,B]]
++\frac1{12}[B,[B,A]]
++\cdots.
+\]
+Set
+\[
+A=\phi^\wedge,
+\qquad
+B=\delta\theta^\wedge.
+\]
+Keeping only terms that are first order in $\delta\theta$,
+\[
+\begin{aligned}
+\log\!\left(
+e^{\phi^\wedge}e^{\delta\theta^\wedge}
+\right)
+&=
+\phi^\wedge+\delta\theta^\wedge
++\frac12[\phi^\wedge,\delta\theta^\wedge]\\
+&\quad
++\frac1{12}
+[\phi^\wedge,[\phi^\wedge,\delta\theta^\wedge]]
++\cdots
++O(\|\delta\theta\|^2).
+\end{aligned}
+\]
+
+For $\SO(3)$,
+\[
+[a^\wedge,b^\wedge]=(a^\wedge b)^\wedge.
+\]
+Therefore,
+\[
+\Log\!\left(
+\Exp(\phi)\Exp(\delta\theta)
+\right)
+=
+\phi+
+\left[
+I+\frac12\phi^\wedge
++\frac1{12}(\phi^\wedge)^2+\cdots
+\right]\delta\theta
++O(\|\delta\theta\|^2).
+\]
+The bracketed series is the inverse right Jacobian,
+\[
+J_r^{-1}(\phi)
+=
+I+\frac12\phi^\wedge
++\frac1{12}(\phi^\wedge)^2+\cdots.
+\]
+Hence
+\[
+\Log\!\left(
+\Exp(\phi)\Exp(\delta\theta)
+\right)
+=
+\phi+J_r^{-1}(\phi)\delta\theta
++O(\|\delta\theta\|^2),
+\]
+which gives
+\[
+\boxed{
+\left.
+\frac{\partial\Log(R\Exp(\delta\theta))}
+{\partial\delta\theta}
+\right|_{\delta\theta=0}
+=
+J_r^{-1}(\Log R).
+}
+\]
 
 \end{document}

@@ -15,12 +15,13 @@
 \newcommand{\g}{\mathbf{g}}
 \newcommand{\I}{\mathbf{I}}
 \newcommand{\Exp}{\operatorname{Exp}}
+\newcommand{\Log}{\operatorname{Log}}
 \newcommand{\Jr}{\mathbf{J}_r}
 \newcommand{\skewop}[1]{#1^{\wedge}}
 \newcommand{\atilde}{\tilde{\mathbf{a}}}
 \newcommand{\omegatilde}{\tilde{\bm\omega}}
 
-\title{ESKF State-Transition Jacobian: Continuous Error-State and Direct Discrete Derivations}
+\title{GINS ESKF: IMU Propagation and GNSS Measurement Update}
 \author{}
 \date{}
 
@@ -333,5 +334,535 @@ The \texttt{manif} Jacobians implement the second viewpoint naturally for Lie-gr
 
 \section{Implementation consistency note}
 If the discrete equations for $p_{k+1}$ and $v_{k+1}$ use the pre-propagation rotation $R_k$, their direct Jacobians should also be evaluated at $R_k$. Updating the stored rotation to $R_{k+1}$ before constructing those Jacobian blocks changes the linearization point and is not exactly the Jacobian of the discrete equations written above.
+
+
+
+\section{From IMU Propagation to GNSS Correction}
+The IMU propagation developed above produces a predicted nominal state and a predicted covariance. In a GINS ESKF, GNSS measurements provide the complementary correction step. The overall cycle is
+\begin{equation}
+\boxed{
+\text{IMU propagation}
+\;\longrightarrow\;
+(\bm x^{-},P^{-})
+\;\longrightarrow\;
+\text{GNSS measurement update}
+\;\longrightarrow\;
+(\bm x^{+},P^{+}).
+}
+\end{equation}
+The superscript ``$-$'' denotes the state before a measurement correction, while ``$+$'' denotes the corrected state.
+
+\section{GNSS Initialization}
+The implementation treats the first GNSS observation differently from later observations. Instead of forming a Kalman innovation, the first valid GNSS pose establishes the initial nominal pose:
+\begin{align}
+\R &\leftarrow \R_{\mathrm{GNSS}},\\
+\p &\leftarrow \p_{\mathrm{GNSS}}.
+\end{align}
+This provides a reasonable initial reference for the ESKF before small-error linearization is used. The first GNSS observation therefore acts as an initialization step rather than an ordinary measurement correction.
+
+In the implementation, this step initializes only position and orientation. Velocity, IMU biases, gravity, and covariance are not overwritten by this GNSS initialization. The filter time is also moved to the GNSS timestamp.
+
+This distinction is important because an ESKF assumes that the error state is small. If the nominal position were still near an arbitrary origin while the GNSS position were already expressed in a large global coordinate system, the initial innovation could be far outside the small-error regime.
+
+\section{GNSS Pose Measurement Model}
+The GNSS update can be derived with exactly the same linearization idea used for IMU propagation. The difference is the function being linearized.
+
+For prediction, the nonlinear function is the motion model,
+\begin{equation}
+\bm x_{k+1}=f_d(\bm x_k,\bm u_k),
+\end{equation}
+and linearizing the propagated output error gives the state-transition Jacobian $F$.
+
+For measurement update, the nonlinear function is the measurement model,
+\begin{equation}
+\bm z_k=h(\bm x_k)+\bm n_k,
+\end{equation}
+and linearizing the measurement residual with respect to the error state gives the measurement Jacobian $H$.
+
+Thus, $H$ is \emph{not} obtained by differentiating the Kalman correction equation. It is obtained by perturbing the state inside the measurement model and observing how the predicted measurement changes.
+
+For the implementation considered here, GNSS provides a six-dimensional pose observation: position and orientation. The nominal measurement prediction is therefore
+\begin{equation}
+h(\bm x)=
+\begin{bmatrix}
+\p\\
+\R
+\end{bmatrix}.
+\end{equation}
+Because the second component lies on $SO(3)$, the measurement residual cannot be formed by ordinary subtraction for all six components. Position uses Euclidean subtraction, while orientation uses the $SO(3)$ group difference.
+
+The error-state ordering remains
+\begin{equation}
+\delta\bm x=
+\begin{bmatrix}
+\delta\p &
+\delta\vct &
+\delta\bm\theta &
+\delta\bg &
+\delta\ba &
+\delta\g
+\end{bmatrix}^{T}.
+\end{equation}
+
+\section{Deriving the GNSS Measurement Jacobian $H$}
+We now derive $H$ from the measurement equations, in the same spirit as the direct discrete derivation of $F$.
+
+\subsection{Position measurement}
+Let the true position be
+\begin{equation}
+\p^t=\p+\delta\p.
+\end{equation}
+The GNSS position observation is modeled as
+\begin{equation}
+\p_{\mathrm{obs}}=\p^t+\bm n_p.
+\end{equation}
+Substituting the error-state definition gives
+\begin{equation}
+\p_{\mathrm{obs}}
+=
+\p+\delta\p+\bm n_p.
+\end{equation}
+The nominal predicted measurement is
+\begin{equation}
+\hat{\p}_{\mathrm{obs}}=h_p(\bm x)=\p.
+\end{equation}
+Therefore the position residual is
+\begin{align}
+\bm r_p
+&=\p_{\mathrm{obs}}-\p\\
+&=\delta\p+\bm n_p.
+\end{align}
+Hence, with respect to the complete 18-dimensional error state,
+\begin{equation}
+\boxed{
+H_p
+=
+\begin{bmatrix}
+I & 0 & 0 & 0 & 0 & 0
+\end{bmatrix}.
+}
+\end{equation}
+Equivalently,
+\begin{equation}
+\frac{\partial\bm r_p}{\partial\delta\p}=I,
+\end{equation}
+while its derivatives with respect to $\delta\vct$, $\delta\bm\theta$, $\delta\bg$, $\delta\ba$, and $\delta\g$ are zero.
+
+\subsection{Orientation measurement}
+For rotation, the true attitude is represented by the right perturbation
+\begin{equation}
+\R^t
+=
+\R\oplus\delta\bm\theta
+=
+\R\Exp(\delta\bm\theta).
+\end{equation}
+The nominal predicted orientation is $\R$, and the local rotational residual is defined by the right-minus operation
+\begin{equation}
+\bm r_R
+=
+\R_{\mathrm{obs}}\ominus\R
+=
+\Log\!\left(\R^{-1}\R_{\mathrm{obs}}\right).
+\end{equation}
+
+To derive the measurement Jacobian, we linearize the residual with respect to the \emph{state error}.  As in the standard EKF derivation, the measurement Jacobian is evaluated at zero measurement noise; the measurement noise is handled separately through the measurement covariance.  Hence, for the purpose of computing $H_R$, set $\bm n_R=0$, so that the ideal observation is the true attitude,
+\begin{equation}
+\R_{\mathrm{obs}}=\R^t.
+\end{equation}
+Using the right-plus/right-minus definitions from Micro Lie Theory,
+\begin{align}
+\bm r_R(\delta\bm\theta,0)
+&=
+\R^t\ominus\R\\
+&=
+(\R\oplus\delta\bm\theta)\ominus\R\\
+&=
+\delta\bm\theta.
+\end{align}
+The last equality is the exact local inverse identity
+\begin{equation}
+(X\oplus\bm\tau)\ominus X=\bm\tau,
+\end{equation}
+so no BCH approximation is required.  Therefore,
+\begin{equation}
+\frac{\partial\bm r_R}{\partial\delta\bm\theta}
+=I,
+\end{equation}
+and with respect to the complete 18-dimensional error state,
+\begin{equation}
+\boxed{
+H_R
+=
+\begin{bmatrix}
+0 & 0 & I & 0 & 0 & 0
+\end{bmatrix}.
+}
+\end{equation}
+
+The rotational measurement noise is still present in the stochastic measurement model and contributes to the measurement covariance $V$.  If one keeps a finite nonzero $\bm n_R$ inside the group composition, the residual generally does not reduce exactly to $\delta\bm\theta+\bm n_R$; that simplification would require a first-order approximation.  Such an approximation is unnecessary for deriving $H_R$ because $H_R$ is the derivative with respect to the state error evaluated at zero measurement noise.
+
+\subsection{Complete pose measurement Jacobian}
+Stacking the position and orientation residuals,
+\begin{equation}
+\bm r=
+\begin{bmatrix}
+\bm r_p\\
+\bm r_R
+\end{bmatrix},
+\end{equation}
+we obtain, to first order,
+\begin{equation}
+\bm r
+\approx
+H\,\delta\bm x+\bm n,
+\end{equation}
+with
+\begin{equation}
+\boxed{
+H =
+\begin{bmatrix}
+I & 0 & 0 & 0 & 0 & 0\\
+0 & 0 & I & 0 & 0 & 0
+\end{bmatrix}.
+}
+\end{equation}
+This is exactly the matrix assembled in the implementation:
+\begin{lstlisting}[language=C++,basicstyle=\ttfamily\small]
+H.block<3, 3>(0, 0) = Mat3d::Identity();  // position residual wrt dp
+H.block<3, 3>(3, 6) = Mat3d::Identity();  // rotation residual wrt dtheta
+\end{lstlisting}
+
+\section{GNSS Innovation}
+The derivation above also explains the innovation used by the code. The position innovation is the ordinary Euclidean difference
+\begin{equation}
+\boxed{
+\bm r_p = \p_{\mathrm{obs}}-\p.
+}
+\end{equation}
+For orientation, the innovation is the local group difference
+\begin{equation}
+\boxed{
+\bm r_R
+=
+\Log\!\left(\R^{-1}\R_{\mathrm{obs}}\right).
+}
+\end{equation}
+The complete six-dimensional innovation is therefore
+\begin{equation}
+\boxed{
+\bm r =
+\begin{bmatrix}
+\p_{\mathrm{obs}}-\p\\[2mm]
+\Log\!\left(\R^{-1}\R_{\mathrm{obs}}\right)
+\end{bmatrix}.
+}
+\end{equation}
+The \texttt{manif} implementation is
+\begin{lstlisting}[language=C++,basicstyle=\ttfamily\small]
+innov.head<3>() = pose.translation() - p_;
+innov.tail<3>() = R_obs.rminus(R_).coeffs();
+\end{lstlisting}
+where
+\begin{equation}
+\R_{\mathrm{obs}}\ominus\R
+=
+\Log(\R^{-1}\R_{\mathrm{obs}}).
+\end{equation}
+Thus the prediction and measurement linearizations have the same conceptual structure:
+\begin{align}
+\text{Predict:}\quad
+&\delta\bm x_{k+1}
+\approx
+F\,\delta\bm x_k,\\
+\text{Update:}\quad
+&\bm r_k
+\approx
+H\,\delta\bm x_k+\bm n_k.
+\end{align}
+The difference is simply the output being linearized: $F$ maps state error to the next state error, whereas $H$ maps state error to measurement residual.
+
+\section{Innovation Covariance and Kalman Gain}
+Let the GNSS measurement-noise covariance be $V$. In the implementation it is a $6\times6$ diagonal matrix containing horizontal position variance, height variance, and three orientation variances. The innovation covariance is
+\begin{equation}
+\boxed{
+S = H P^{-}H^{T}+V.
+}
+\end{equation}
+The Kalman gain is
+\begin{equation}
+\boxed{
+K=P^{-}H^{T}S^{-1}.
+}
+\end{equation}
+The estimated error state is then
+\begin{equation}
+\boxed{
+\widehat{\delta\bm x}=K\bm r.
+}
+\end{equation}
+This is a key ESKF distinction: the Kalman update estimates the \emph{error state}; it does not replace the nominal state directly.
+
+\section{Covariance Update Before Error Injection}
+The implementation uses the standard simplified covariance update
+\begin{equation}
+\boxed{
+P \leftarrow (I-KH)P^{-}.
+}
+\end{equation}
+A numerically more robust alternative is the Joseph form
+\begin{equation}
+P \leftarrow
+(I-KH)P^{-}(I-KH)^{T}
++KVK^{T},
+\end{equation}
+but the equations in this section follow the implementation directly.
+
+\section{Wheel Velocity Measurement Update: Body and World Frames}
+We now assume a sensor provides the full three-dimensional velocity
+$\bm z_v^B\in\mathbb R^3$ expressed in the body frame. This is a modeling
+assumption for the derivation, not a claim that an ordinary wheel encoder
+measures all three components. We neglect lever arms and additional motion
+constraints. The nominal velocity $\vct$ is expressed in the world frame,
+and $\R$ maps body-frame vectors to the world frame.
+
+\subsection{Body-frame observation model}
+The physical measurement equation is
+\begin{equation}
+\boxed{\bm z_v^B=\R^T\vct+\bm n_v^B,\qquad h_B(\bm x)=\R^T\vct.}
+\end{equation}
+Its innovation, evaluated at the predicted nominal state, is
+\begin{equation}
+\bm r_B=\bm z_v^B-\R^T\vct.
+\end{equation}
+We use the same right-local attitude error as in the preceding sections:
+\begin{equation}
+\R^t=\R\Exp(\delta\bm\theta),\qquad
+\vct^t=\vct+\delta\bm v.
+\end{equation}
+Consequently, the noise-free observation at the perturbed state is
+\begin{align}
+h_B(\bm x\oplus\delta\bm x)
+&=(\R\Exp(\delta\bm\theta))^T(\vct+\delta\bm v)\\
+&=\Exp(-\delta\bm\theta)\R^T(\vct+\delta\bm v).
+\end{align}
+Write $\bm q=\R^T\vct$. The derivative with respect to the velocity
+perturbation is exact:
+\begin{equation}
+\left.\frac{\partial h_B}{\partial\delta\bm v}\right|_0=\R^T.
+\end{equation}
+For attitude, use the defining derivative of the exponential at the origin,
+$\left.\frac{d}{d\epsilon}\Exp(-\epsilon\bm u)\right|_{\epsilon=0}
+=-\skewop{\bm u}$, rather than a BCH expansion:
+\begin{align}
+\left.\frac{d}{d\epsilon}\Exp(-\epsilon\bm u)\bm q\right|_{\epsilon=0}
+&=-\skewop{\bm u}\bm q
+=\skewop{\bm q}\bm u.
+\end{align}
+Therefore the local measurement Jacobian is
+\begin{equation}
+\boxed{
+H_B=\begin{bmatrix}
+0_{3\times3}&\R^T&\skewop{\R^T\vct}&0_{3\times3}&0_{3\times3}&0_{3\times3}
+\end{bmatrix}.}
+\end{equation}
+This derivative is exact at the nominal state; the linearized measurement
+relation $\bm r_B\simeq H_B\delta\bm x+\bm n_v^B$ is a first-order
+approximation for finite perturbations. The update uses the covariance
+$V_B=\operatorname{Cov}(\bm n_v^B)$ in the body frame.
+
+\subsection{World-frame observation used in Chapter 3}
+Chapter 3, Eqs.~(3.74)--(3.75), instead first rotates the measured velocity
+with the \emph{estimated} attitude $\widehat\R$:
+\begin{equation}
+\bm z_v^W=\widehat\R\bm z_v^B,
+\qquad \bm r_W=\bm z_v^W-\vct.
+\end{equation}
+Treating $\bm z_v^W$ as fixed when differentiating, the abstract
+observation model is $h_W(\bm x)=\vct$. Perturbing the state yields
+\begin{equation}
+h_W(\bm x\oplus\delta\bm x)=\vct+\delta\bm v,
+\end{equation}
+so that
+\begin{equation}
+\boxed{H_W=\begin{bmatrix}
+0_{3\times3}&I_3&0_{3\times3}&0_{3\times3}&0_{3\times3}&0_{3\times3}
+\end{bmatrix}.}
+\end{equation}
+This reproduces Eq.~(3.75) and the simplified Jacobian used by
+\texttt{ObserveWheelSpeed()}. If $V_B$ is the body-frame sensor covariance,
+rotating only the sensor noise gives
+\begin{equation}
+V_W=\widehat\R V_B\widehat\R^T.
+\end{equation}
+However, $\widehat\R$ is itself estimated from the filter state. The
+fixed-transformed-measurement formulation omits its state dependence and
+associated correlations; the two Jacobians should therefore not be
+interpreted as statistically identical observation models.
+
+\subsection{Comparison and Kalman update}
+\begin{center}
+\begin{tabular}{p{0.23\textwidth}p{0.33\textwidth}p{0.33\textwidth}}
+\toprule
+ & Body frame & World frame (Chapter 3)\\
+\midrule
+Observation $h$ & $\R^T\vct$ & $\vct$\\
+Innovation & $\bm z_v^B-\R^T\vct$ & $\widehat\R\bm z_v^B-\vct$\\
+Velocity block & $\R^T$ & $I_3$\\
+Attitude block & $\skewop{\R^T\vct}$ & $0_{3\times3}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+For either chosen model, with the matching residual $\bm r$, Jacobian
+$H$, and measurement covariance $V$, the ESKF update is
+\begin{align}
+S&=HP^-H^T+V,\\
+K&=P^-H^TS^{-1},\\
+\widehat{\delta\bm x}&=K\bm r.
+\end{align}
+The subsequent covariance update, error injection, and reset are the same
+operations as in the GNSS update. The difference lies in how the velocity
+measurement and its Jacobian are modeled.
+
+
+\section{Injecting the Estimated Error into the Nominal State}
+Write the estimated correction as
+\begin{equation}
+\widehat{\delta\bm x}
+=
+\begin{bmatrix}
+\widehat{\delta\p} &
+\widehat{\delta\vct} &
+\widehat{\delta\bm\theta} &
+\widehat{\delta\bg} &
+\widehat{\delta\ba} &
+\widehat{\delta\g}
+\end{bmatrix}^{T}.
+\end{equation}
+
+It is convenient to regard the complete nominal state as the product manifold
+\begin{equation}
+\mathcal X
+=
+\mathbb R^3\times\mathbb R^3\times SO(3)\times
+\mathbb R^3\times\mathbb R^3\times\mathbb R^3,
+\end{equation}
+with
+\begin{equation}
+\bm x=(\p,\vct,\R,\bg,\ba,\g).
+\end{equation}
+Then the entire ESKF injection can be written compactly as
+\begin{equation}
+\boxed{
+\bm x^{+}
+=
+\bm x^{-}\oplus\widehat{\delta\bm x}.
+}
+\end{equation}
+Here the composite $\oplus$ operation acts componentwise: it is ordinary vector addition on the Euclidean components and the right-plus operation on the $SO(3)$ component.  Expanding the definition once gives
+\begin{align}
+\p^{+} &= \p^{-}+\widehat{\delta\p},\\
+\vct^{+} &= \vct^{-}+\widehat{\delta\vct},\\
+\R^{+} &= \R^{-}\oplus\widehat{\delta\bm\theta},\\
+\bg^{+} &= \bg^{-}+\widehat{\delta\bg},\\
+\ba^{+} &= \ba^{-}+\widehat{\delta\ba},\\
+\g^{+} &= \g^{-}+\widehat{\delta\g}.
+\end{align}
+For the rotational component,
+\begin{equation}
+\R^{-}\oplus\widehat{\delta\bm\theta}
+=
+\R^{-}\Exp(\widehat{\delta\bm\theta}),
+\end{equation}
+so the implementation uses \texttt{manif::rplus()} directly:
+\begin{lstlisting}[language=C++,basicstyle=\ttfamily\small]
+R_ = R_.rplus(manif::SO3Tangentd(dx_.segment<3>(6)));
+\end{lstlisting}
+The current implementation stores the state components separately rather than as one composite \texttt{manif} object, so the Euclidean components are still updated explicitly in C++.  Mathematically, however, all six updates are one operation: $\bm x^{+}=\bm x^{-}\oplus\widehat{\delta\bm x}$.
+
+The gyro- and accelerometer-bias corrections are conditional on the corresponding configuration flags; gravity is updated unconditionally.
+
+\section{Error-State Reset and Covariance Projection}
+After the estimated error has been injected into the nominal state, the error-state mean must be reset to zero:
+\begin{equation}
+\boxed{
+\delta\bm x \leftarrow 0.
+}
+\end{equation}
+For Euclidean components, this reset is only a change of reference. For rotation, however, the local tangent coordinates are attached to the newly corrected nominal orientation. Therefore the covariance must also be projected into the new error coordinates.
+
+The implementation uses the reset Jacobian
+\begin{equation}
+J_{\mathrm{reset}}=I_{18},
+\end{equation}
+except for the attitude block
+\begin{equation}
+\boxed{
+(J_{\mathrm{reset}})_{\theta\theta}
+\approx
+I-\frac12\skewop{\widehat{\delta\bm\theta}}.
+}
+\end{equation}
+The covariance is then transformed as
+\begin{equation}
+\boxed{
+P\leftarrow
+J_{\mathrm{reset}}P J_{\mathrm{reset}}^{T}.
+}
+\end{equation}
+Only after this projection is the stored error-state vector set to zero.
+
+
+\section{Complete GINS ESKF Cycle}
+The complete IMU-prediction and GNSS-correction sequence can now be summarized as follows:
+\begin{enumerate}
+    \item \textbf{IMU nominal propagation:} propagate $\p$, $\vct$, and $\R$ using the IMU measurements; keep the nominal $\bg$, $\ba$, and $\g$ constant during propagation.
+    \item \textbf{Error covariance propagation:} construct the discrete transition matrix $F$ and compute
+    \begin{equation}
+    P^{-}=F P^{+}_{\mathrm{previous}}F^{T}+Q.
+    \end{equation}
+    \item \textbf{GNSS innovation:} compare the observed GNSS pose with the predicted nominal pose using Euclidean subtraction for position and $SO(3)$ \texttt{rminus()} for orientation.
+    \item \textbf{Kalman correction:} compute $S$, $K$, and the estimated error state $\widehat{\delta\bm x}$.
+    \item \textbf{Covariance measurement update:} apply $(I-KH)P^{-}$ in the current implementation.
+    \item \textbf{Error injection:} inject $\widehat{\delta\bm x}$ into the nominal state, using \texttt{rplus()} for orientation.
+    \item \textbf{Reset:} project the covariance to the new local rotation coordinates and reset the error-state mean to zero.
+\end{enumerate}
+
+Conceptually,
+\begin{equation}
+\boxed{
+\begin{array}{c}
+\text{IMU}\;\longrightarrow\;\text{Predict}\;\longrightarrow\;(\bm x^{-},P^{-})\\[1mm]
+\text{GNSS}\;\longrightarrow\;\text{innovation}\;\longrightarrow\;K\bm r
+\;\longrightarrow\;\text{inject}\;\longrightarrow\;\text{reset}
+\;\longrightarrow\;(\bm x^{+},P^{+}).
+\end{array}
+}
+\end{equation}
+
+\section{Mapping to the ESKF Implementation}
+The main functions in the Chapter 3 implementation correspond to the mathematics above as follows:
+\begin{center}
+\begin{tabular}{>{\ttfamily}l p{0.62\textwidth}}
+\toprule
+\textnormal{Function} & \textnormal{Role}\\
+\midrule
+Predict() & IMU nominal-state propagation, discrete error-state transition matrix $F$, and covariance propagation.\\
+ObserveGps() & Uses the first GNSS pose for initialization; later measurements are forwarded to the pose update.\\
+ObserveSE3() & Builds $H$, forms position and rotation innovations, computes $K$, estimates $\delta\bm x$, and performs the measurement covariance update.\\
+UpdateAndReset() & Injects the estimated error into $p,v,R,b_g,b_a,g$, calls covariance projection, then resets the stored error state.\\
+ProjectCov() & Applies the first-order attitude reset Jacobian to transform covariance into the new local error coordinates.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The two \texttt{manif} operations now have complementary roles:
+\begin{align}
+\texttt{rplus}:\quad &\R\oplus\delta\bm\theta
+=\R\Exp(\delta\bm\theta),\\
+\texttt{rminus}:\quad &\R_{\mathrm{obs}}\ominus\R
+=\Log(\R^{-1}\R_{\mathrm{obs}}).
+\end{align}
+Thus the same Lie-group perturbation convention is used consistently in both propagation and measurement correction.
 
 \end{document}
