@@ -13,6 +13,7 @@
 \title{Chapter 4: IMU Pre-integration\\\large Derivation of the Three Pre-integrated Increments}
 \author{}
 \date{}
+\usepackage{graphicx}
 \begin{document}
 \maketitle
 \tableofcontents
@@ -24,33 +25,108 @@ We derive the three pre-integrated increments corresponding to the textbook's eq
 \end{equation}
 We assume $R_k\in\SO(3)$ maps body-frame vectors to world-frame vectors, $p_k,v_k,g\in\R^3$ are world-frame quantities, gravity $g$ is constant over the interval, and the bias/noise terms are represented by $b_{g,k},b_{a,k},\eta_{gd,k},\eta_{ad,k}$. The IMU measurements are $\tilde\omega_k$ and $\tilde a_k$. We use a zero-order-hold approximation over each sample interval for the corrected acceleration and angular velocity. All products of rotations are \emph{time ordered}.
 
-For compactness, define
-\begin{equation}
-\alpha_k\defeq\tilde a_k-b_{a,k}-\eta_{ad,k},\qquad
-\Omega_k\defeq\Exp\!\left((\tilde\omega_k-b_{g,k}-\eta_{gd,k})\Delta t_k\right).
-\end{equation}
-The single-step discrete-time kinematics are
-\begin{subequations}\label{eq:step}
+
+\subsection{Continuous-time kinematics (textbook Section 4.1.1)}
+The starting point is the continuous-time rigid-body kinematics,
+where $a(t)$ is the \emph{world-frame total acceleration} and
+$\omega(t)$ is the body-frame angular velocity:
+\begin{subequations}\label{eq:continuous_kinematics}
 \begin{align}
-R_{k+1}&=R_k\Omega_k,\\
-v_{k+1}&=v_k+g\Delta t_k+R_k\alpha_k\Delta t_k,\\
-p_{k+1}&=p_k+v_k\Delta t_k+\tfrac12g\Delta t_k^2+\tfrac12R_k\alpha_k\Delta t_k^2.
+\dot R(t)&=R(t)\omega(t)^\wedge,\\
+\dot v(t)&=a(t),\\
+\dot p(t)&=v(t).
 \end{align}
 \end{subequations}
+On the interval $[t_k,t_{k+1}]$, let $\Delta t_k=t_{k+1}-t_k$.
+If $\omega_k$ is held constant, solving the rotation differential
+ equation gives
+\begin{equation}
+R_{k+1}=R_k\Exp(\omega_k\Delta t_k).
+\end{equation}
+With constant world-frame acceleration $a_k$ over the step,
+ integration of $\dot v=a_k$ gives
+\begin{equation}
+v_{k+1}=v_k+a_k\Delta t_k.
+\end{equation}
+Since $v(t_k+\tau)=v_k+a_k\tau$, integrating $\dot p=v$ gives
+\begin{align}
+p_{k+1}&=p_k+\int_0^{\Delta t_k}(v_k+a_k\tau)\,d\tau\notag\\
+&=p_k+v_k\Delta t_k+\tfrac12a_k\Delta t_k^2.
+\end{align}
+These are the textbook's single-step discrete kinematics.
+For the position and velocity steps, holding $a_k$ constant is an
+approximation: during a real IMU interval the body may rotate, so
+$R(t)$ and hence the world-frame acceleration can vary.
+
+\subsection{Continuous-time IMU measurement model and gravity}
+Before discretizing the sensor noise, use the continuous-time IMU
+measurement model of textbook Section 4.1.1. The gyroscope measures
+body-frame angular velocity, and the accelerometer measures body-frame
+\emph{specific force} (the acceleration excluding gravity):
+\begin{subequations}\label{eq:imu_model}
+\begin{align}
+\tilde\omega(t)&=\omega(t)+b_g(t)+\eta_g(t),\\
+\tilde a(t)&=R(t)^T\bigl(a(t)-g\bigr)+b_a(t)+\eta_a(t).
+\end{align}
+\end{subequations}
+Here $\eta_g(t)$ and $\eta_a(t)$ denote continuous-time white
+measurement noise, and $b_g(t),b_a(t)$ are time-dependent biases.
+Solving for the quantities appearing in the kinematics gives
+\begin{align}
+\omega(t)&=\tilde\omega(t)-b_g(t)-\eta_g(t),\\
+a(t)&=g+R(t)\bigl(\tilde a(t)-b_a(t)-\eta_a(t)\bigr).
+\end{align}
+Thus gravity appears in the world-frame acceleration even though the
+accelerometer measures specific force in the body frame.
+
+\subsection{Discrete-time noise convention}
+To apply the continuous-time measurement model over
+$[t_k,t_{k+1}]$, use the sample interval $\Delta t_k$ and the
+interval-averaged discrete noises $\eta_{gd,k}$ and $\eta_{ad,k}$.
+If $Q_{g,c}$ and $Q_{a,c}$ are the continuous-time white-noise
+intensity matrices, their discrete sample covariances are
+\begin{subequations}\label{eq:noise_discretization_intro}
+\begin{align}
+\operatorname{Cov}(\eta_{gd,k})&=\frac{Q_{g,c}}{\Delta t_k},\\
+\operatorname{Cov}(\eta_{ad,k})&=\frac{Q_{a,c}}{\Delta t_k}.
+\end{align}
+\end{subequations}
+These are the discrete measurement-noise samples appearing in the
+single-step equations below. The factors $1/\Delta t_k$ refer to
+sample-average noise covariance; the covariance of the integrated
+noise increment instead scales with $\Delta t_k$.
+
+\subsection{Single-step discrete IMU propagation}
+Evaluating the continuous-time measurement model at each sample and
+using the discrete noise convention above, substitute the corrected
+angular velocity and world-frame acceleration into the single-step
+kinematics. This gives the three equations used throughout the derivation:
+\begin{subequations}\label{eq:step}
+\begin{align}
+R_{k+1}&=R_k\Exp\!\left((\tilde\omega_k-b_{g,k}-\eta_{gd,k})\Delta t_k\right),\\
+v_{k+1}&=v_k+g\Delta t_k
+ +R_k(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k,\\
+p_{k+1}&=p_k+v_k\Delta t_k+\tfrac12g\Delta t_k^2\notag\\
+&\quad+\tfrac12R_k(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k^2.
+\end{align}
+\end{subequations}
+The gravity terms follow directly from the world-frame acceleration
+$a_k=g+R_k(\tilde a_k-b_{a,k}-\eta_{ad,k})$.
+In particular, the factor $\tfrac12$ in the position equation comes
+from integrating velocity over one sample interval.
 
 \section{Rotation increment $\Delta R_{ij}$}
 Repeated substitution into \eqref{eq:step}a gives
 \begin{align*}
-R_{i+1}&=R_i\Omega_i,\\
-R_{i+2}&=R_{i+1}\Omega_{i+1}=R_i\Omega_i\Omega_{i+1},\\
-R_{i+3}&=R_i\Omega_i\Omega_{i+1}\Omega_{i+2},\\
-R_j&=R_i\prod_{k=i}^{j-1}\Omega_k.
+R_{i+1}&=R_i\Exp((\tilde\omega_i-b_{g,i}-\eta_{gd,i})\Delta t_i),\\
+R_j&=R_i\prod_{k=i}^{j-1}
+\Exp((\tilde\omega_k-b_{g,k}-\eta_{gd,k})\Delta t_k).
 \end{align*}
 Left-multiplying by $R_i^T$ and using $R_i^TR_i=I_3$ yields
 \begin{equation}\label{eq:dR}
 \boxed{\Delta R_{ij}\defeq R_i^TR_j=\prod_{k=i}^{j-1}\Exp\!\left((\tilde\omega_k-b_{g,k}-\eta_{gd,k})\Delta t_k\right).}
 \end{equation}
-The product is $\Omega_i\Omega_{i+1}\cdots\Omega_{j-1}$; its factors cannot generally be reordered. In particular, $\Delta R_{ii}=I_3$ and
+The product is ordered from the earliest sample $i$ on the left to the latest sample $j-1$ on the right; its factors cannot generally be reordered. In particular, $\Delta R_{ii}=I_3$ and
 \begin{equation}\label{eq:Rk}
 \Delta R_{ik}=R_i^TR_k,\qquad R_k=R_i\Delta R_{ik}.
 \end{equation}
@@ -61,14 +137,14 @@ Summing \eqref{eq:step}b from $k=i$ to $j-1$ gives a telescoping sum on the left
 \begin{align}
 v_j-v_i
 &=\sum_{k=i}^{j-1}(v_{k+1}-v_k)\notag\\
-&=\sum_{k=i}^{j-1}g\Delta t_k+\sum_{k=i}^{j-1}R_k\alpha_k\Delta t_k\notag\\
-&=g\Delta t_{ij}+\sum_{k=i}^{j-1}R_k\alpha_k\Delta t_k.
+&=\sum_{k=i}^{j-1}g\Delta t_k+\sum_{k=i}^{j-1}R_k(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k\notag\\
+&=g\Delta t_{ij}+\sum_{k=i}^{j-1}R_k(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k.
 \end{align}
 Substitute $R_k=R_i\Delta R_{ik}$ from \eqref{eq:Rk}:
 \begin{align}
 v_j-v_i-g\Delta t_{ij}
-&=\sum_{k=i}^{j-1}R_i\Delta R_{ik}\alpha_k\Delta t_k\notag\\
-&=R_i\sum_{k=i}^{j-1}\Delta R_{ik}\alpha_k\Delta t_k.
+&=\sum_{k=i}^{j-1}R_i\Delta R_{ik}(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k\notag\\
+&=R_i\sum_{k=i}^{j-1}\Delta R_{ik}(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k.
 \end{align}
 Left-multiply by $R_i^T$:
 \begin{equation}\label{eq:dv}
@@ -92,7 +168,7 @@ Summing \eqref{eq:step}c gives
 p_j-p_i
 =\sum_{k=i}^{j-1}v_k\Delta t_k
 +\tfrac12g\sum_{k=i}^{j-1}\Delta t_k^2
-+\tfrac12\sum_{k=i}^{j-1}R_k\alpha_k\Delta t_k^2.
++\tfrac12\sum_{k=i}^{j-1}R_k(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k^2.
 \end{equation}
 Unlike the velocity case, the first sum contains intermediate velocities $v_k$. We eliminate them using \eqref{eq:vk}.
 
@@ -109,7 +185,7 @@ p_j-p_i
 &=v_i\Delta t_{ij}
 +g\left[\sum_{k=i}^{j-1}\Delta t_{ik}\Delta t_k+\tfrac12\sum_{k=i}^{j-1}\Delta t_k^2\right]\notag\\
 &\quad+R_i\sum_{k=i}^{j-1}\Delta v_{ik}\Delta t_k
-+\tfrac12\sum_{k=i}^{j-1}R_k\alpha_k\Delta t_k^2.
++\tfrac12\sum_{k=i}^{j-1}R_k(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k^2.
 \label{eq:pintermediate}
 \end{align}
 
@@ -139,7 +215,7 @@ Using $R_k=R_i\Delta R_{ik}$ in \eqref{eq:pintermediate}, and combining the grav
 \begin{align}
 p_j-p_i
 &=v_i\Delta t_{ij}+\tfrac12g\Delta t_{ij}^2\notag\\
-&\quad+R_i\sum_{k=i}^{j-1}\left[\Delta v_{ik}\Delta t_k+\tfrac12\Delta R_{ik}\alpha_k\Delta t_k^2\right].
+&\quad+R_i\sum_{k=i}^{j-1}\left[\Delta v_{ik}\Delta t_k+\tfrac12\Delta R_{ik}(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k^2\right].
 \end{align}
 Move the initial-state terms to the left and multiply by $R_i^T$:
 \begin{equation}\label{eq:dp}
@@ -157,9 +233,9 @@ Recall $\Delta t_{ij}=\sum_{k=i}^{j-1}\Delta t_k$. The pre-integrated quantities
 \boxed{\Delta R_{ij}}&=R_i^TR_j
 =\prod_{k=i}^{j-1}\Exp\!\left((\tilde\omega_k-b_{g,k}-\eta_{gd,k})\Delta t_k\right),\\
 \boxed{\Delta v_{ij}}&=R_i^T(v_j-v_i-g\Delta t_{ij})
-=\sum_{k=i}^{j-1}\Delta R_{ik}\alpha_k\Delta t_k,\\
+=\sum_{k=i}^{j-1}\Delta R_{ik}(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k,\\
 \boxed{\Delta p_{ij}}&=R_i^T\left(p_j-p_i-v_i\Delta t_{ij}-\tfrac12g\Delta t_{ij}^2\right)
-=\sum_{k=i}^{j-1}\left(\Delta v_{ik}\Delta t_k+\tfrac12\Delta R_{ik}\alpha_k\Delta t_k^2\right).
+=\sum_{k=i}^{j-1}\left(\Delta v_{ik}\Delta t_k+\tfrac12\Delta R_{ik}(\tilde a_k-b_{a,k}-\eta_{ad,k})\Delta t_k^2\right).
 \end{align}
 \end{subequations}
 All three right-hand expressions depend on IMU measurements, biases, noise, and sample intervals, not on the absolute initial state $(R_i,v_i,p_i)$. The bias dependence remains; later pre-integration bias corrections address changes in the bias estimates.
@@ -174,15 +250,17 @@ All three right-hand expressions depend on IMU measurements, biases, noise, and 
 
 \section{Pre-integration measurement model through the textbook's (4.18)}
 \subsection{Fixed-bias assumption and noise convention}
-For the interval $[t_i,t_j]$, the pre-integration computation uses fixed
-linearization biases $b_{g,i}$ and $b_{a,i}$, rather than the varying
-$b_{g,k},b_{a,k}$ of the initial kinematics. The bias estimate can later
-be corrected using bias Jacobians; that calculation is outside the
-scope of these notes. Let
+For the pre-integration interval $[t_i,t_j]$, we assume that the
+gyroscope and accelerometer biases remain constant and are approximated
+by their values at the initial time $t_i$:
 \begin{equation}
-u_k\defeq\tilde\omega_k-b_{g,i},\qquad
-\theta_k\defeq u_k\Delta t_k,\qquad
-J_{r,k}\defeq J_r(\theta_k).
+ b_{g,k}\approx b_{g,i},\qquad b_{a,k}\approx b_{a,i}.
+\end{equation}
+Changes in the bias estimates are handled using the bias Jacobians
+derived in the subsequent Bias Update section. We retain only the
+following frequently used right-Jacobian notation:
+\begin{equation}
+J_{r,k}\defeq J_r\!\left((\tilde\omega_k-b_{g,i})\Delta t_k\right).
 \end{equation}
 Here $J_r$ denotes the right Jacobian of $\SO(3)$.
 The discrete noise samples are $\eta_{gd,k}$ and $\eta_{ad,k}$.
@@ -197,15 +275,15 @@ The right-Jacobian first-order identity is
 \end{equation}
 Setting $\epsilon=-\eta_{gd,k}\Delta t_k$ gives
 \begin{equation}
-\Exp((u_k-\eta_{gd,k})\Delta t_k)
+\Exp((\tilde\omega_k-b_{g,i}-\eta_{gd,k})\Delta t_k)
 \simeq
-\Exp(u_k\Delta t_k)
+\Exp((\tilde\omega_k-b_{g,i})\Delta t_k)
 \Exp(-J_{r,k}\eta_{gd,k}\Delta t_k).
 \end{equation}
 Define the noise-free computed measurement
 \begin{equation}\label{eq:tildeR}
 \boxed{\Delta\tilde R_{ij}\defeq
-\prod_{k=i}^{j-1}\Exp(u_k\Delta t_k),\qquad
+\prod_{k=i}^{j-1}\Exp((\tilde\omega_k-b_{g,i})\Delta t_k),\qquad
 \Delta\tilde R_{ii}=I_3.}
 \end{equation}
 For any $B\in\SO(3)$, the adjoint identity is
@@ -336,8 +414,8 @@ Hence
 \end{equation}
 
 \section{Summary: pre-integration measurement model}
-Collecting the preceding definitions and the original relative-state
-increments yields the textbook's three measurement relations through (4.18):
+Combining the preceding definitions with the relative-state increments
+yields the following pre-integration measurement model:
 \begin{subequations}\label{eq:measurementSummary}
 \begin{align}
 \boxed{\Delta\tilde R_{ij}}
@@ -356,9 +434,9 @@ $\Delta\tilde R_{ij}$. Unlike $\delta v_{ij}$ and $\delta p_{ij}$,
 rotation noise enters multiplicatively on $\SO(3)$.
 
 The three tilde quantities are computed from IMU measurements and the
-fixed bias linearization point. The three delta noise quantities are
-random perturbations; their covariance propagation and bias-update
-Jacobians will be developed later, and are \emph{not} included here.
+fixed bias linearization point. The three delta noise quantities represent
+accumulated measurement noise, whose covariance is propagated in the
+following section. The bias-update Jacobians are derived subsequently.
 
 
 \section{Recursive propagation of pre-integration noise}
@@ -379,12 +457,14 @@ The initial accumulated errors and covariance vanish:
 \end{equation}
 
 \subsection{Rotation noise recursion}
-The accumulated rotation perturbation from the preceding section is
+The accumulated rotation perturbation from the preceding section, with the
+same general interval indices $i,j$ as in the textbook, is
 \begin{equation}
-\delta\phi_{i,k+1}
-=\sum_{\ell=i}^{k} \Delta\tilde R_{\ell+1,k+1}^{T}
+\delta\phi_{ij}
+=\sum_{\ell=i}^{j-1} \Delta\tilde R_{\ell+1,j}^{T}
  J_{r,\ell}\eta_{gd,\ell}\Delta t_\ell.
 \end{equation}
+To derive the recursive update, set $j=k+1$ in this general expression.
 Separate the final term and use
 $\Delta\tilde R_{\ell+1,k+1}
 =\Delta\tilde R_{\ell+1,k}\Delta\tilde R_{k,k+1}$ for $\ell<k$:
@@ -399,29 +479,43 @@ The transpose of $\Delta\tilde R_{k,k+1}$ is the adjoint transport of the previo
 accumulated rotation noise to the newest right-tangent coordinates.
 
 \subsection{Velocity noise recursion}
-Using the preceding definition of $\delta v$ and splitting off the
-last IMU interval gives
+For the general pre-integration interval $[t_i,t_j]$, the accumulated
+velocity noise is
+\begin{equation}
+\delta v_{ij}
+=\sum_{\ell=i}^{j-1}\left[
+-\Delta\tilde R_{i\ell}(\tilde a_\ell-b_{a,i})^\wedge
+\delta\phi_{i\ell}\Delta t_\ell
++\Delta\tilde R_{i\ell}\eta_{ad,\ell}\Delta t_\ell
+\right].
+\end{equation}
+To obtain a recursive update, set $j=k+1$ and separate the final
+IMU interval:
 \begin{align}
 \delta v_{i,k+1}
-&=\sum_{\ell=i}^{k-1}\Bigl[
--\Delta\tilde R_{i\ell}(\tilde a_\ell-b_{a,i})^\wedge\delta\phi_{i\ell}
-+\Delta\tilde R_{i\ell}\eta_{ad,\ell}\Bigr]\Delta t_\ell\notag\\
-&\quad+\Bigl[-\Delta\tilde R_{ik}(\tilde a_k-b_{a,i})^\wedge\delta\phi_{ik}
-+\Delta\tilde R_{ik}\eta_{ad,k}\Bigr]\Delta t_k\\
+&=\sum_{\ell=i}^{k-1}\left[
+-\Delta\tilde R_{i\ell}(\tilde a_\ell-b_{a,i})^\wedge
+\delta\phi_{i\ell}
++\Delta\tilde R_{i\ell}\eta_{ad,\ell}\right]\Delta t_\ell\notag\\
+&\quad-\Delta\tilde R_{ik}(\tilde a_k-b_{a,i})^\wedge
+\delta\phi_{ik}\Delta t_k
++\Delta\tilde R_{ik}\eta_{ad,k}\Delta t_k\\
 &=\delta v_{ik}
--\Delta\tilde R_{ik}(\tilde a_k-b_{a,i})^\wedge\delta\phi_{ik}\Delta t_k\notag\\
-&\quad+\Delta\tilde R_{ik}\eta_{ad,k}\Delta t_k.
+-\Delta\tilde R_{ik}(\tilde a_k-b_{a,i})^\wedge
+\delta\phi_{ik}\Delta t_k
++\Delta\tilde R_{ik}\eta_{ad,k}\Delta t_k.
 \end{align}
 The velocity error therefore couples to the accumulated rotation error.
 
 \subsection{Position noise recursion}
-Similarly, split the last interval from the position noise sum:
-\begin{align}
-\delta p_{i,k+1}
-&=\delta p_{ik}+\delta v_{ik}\Delta t_k
--\tfrac12 \Delta\tilde R_{ik}(\tilde a_k-b_{a,i})^\wedge\delta\phi_{ik}\Delta t_k^2
-+\tfrac12 \Delta\tilde R_{ik}\eta_{ad,k}\Delta t_k^2.
-\end{align}
+For the general interval $[t_i,t_j]$, the accumulated position noise is
+\begin{equation}
+\delta p_{ij}=\sum_{\ell=i}^{j-1}\bigl[\delta v_{i\ell}\Delta t_\ell-\tfrac12\Delta\tilde R_{i\ell}(\tilde a_\ell-b_{a,i})^\wedge\delta\phi_{i\ell}\Delta t_\ell^2+\tfrac12\Delta\tilde R_{i\ell}\eta_{ad,\ell}\Delta t_\ell^2\bigr].
+\end{equation}
+Setting $j=k+1$ and splitting off the final interval yields
+\begin{equation}
+\delta p_{i,k+1}=\delta p_{ik}+\delta v_{ik}\Delta t_k-\tfrac12\Delta\tilde R_{ik}(\tilde a_k-b_{a,i})^\wedge\delta\phi_{ik}\Delta t_k^2+\tfrac12\Delta\tilde R_{ik}\eta_{ad,k}\Delta t_k^2.
+\end{equation}
 Notice that the $\delta v_{ik}$ term is the \emph{previous} accumulated
 velocity noise, consistent with the discrete position integration rule.
 
@@ -558,25 +652,21 @@ In the textbook's bias-update equation, set the generic input parameter
 to the initial gyroscope-bias estimate $b_{g,i}$. The pre-integrated
 rotation $\Delta\tilde R_{ij}$ is a function of this bias because
 its IMU increments contain $\tilde\omega_k-b_{g,i}$.
-Thus, \eqref{eq:rot_param_linear} gives
+Thus, applying the right-trivialized Jacobian defined in
+\eqref{eq:rot_param_J} at the fixed bias $b_{g,i}$ gives
 \begin{equation}\label{eq:preint_bg_rotation}
 \boxed{\Delta\tilde R_{ij}(b_{g,i}+\delta b_{g,i})\simeq
 \Delta\tilde R_{ij}(b_{g,i})
-\Exp\!\left(J_{\Delta R,b_g}\delta b_{g,i}\right),}
+\Exp\!\left(J_{\Delta\tilde R,b_g}^{ij}\delta b_{g,i}\right).}
 \end{equation}
-where
-\begin{equation}\label{eq:preint_bg_J_def}
-\small
-J_{\Delta R,b_g}\defeq
-\left.\frac{\partial}{\partial\delta b_{g,i}}
-\Log\!\left(\Delta\tilde R_{ij}(b_{g,i})^T
-\Delta\tilde R_{ij}(b_{g,i}+\delta b_{g,i})\right)
-\right|_{\delta b_{g,i}=0}.
-\end{equation}
-The textbook abbreviates this $3\times3$ right-trivialized Jacobian
-as $\partial\Delta\tilde R_{ij}/\partial b_{g,i}$.
-It is \emph{not} an ordinary entrywise derivative of a $3\times3$
-rotation matrix.
+Here $J_{\Delta\tilde R,b_g}^{ij}$ denotes $J_{R,\phi}$ from
+\eqref{eq:rot_param_J} evaluated for
+$R(\phi)=\Delta\tilde R_{ij}(b_{g,i})$ with $\phi=b_{g,i}$.
+Equivalently, it is the right-trivialized $3\times3$ bias Jacobian
+that the textbook denotes by
+$\partial\Delta\tilde R_{ij}/\partial b_{g,i}$; it is not an
+entrywise derivative of the rotation matrix. The subsequent
+bias-Jacobian derivations retain the textbook notation for comparison.
 
 \subsection{Velocity and position bias corrections}
 Unlike the rotation measurement, $\Delta\tilde v_{ij}$ and
@@ -603,14 +693,20 @@ Likewise,
 +\frac{\partial\Delta\tilde p_{ij}}{\partial b_{a,i}}\delta b_{a,i}.
 \end{aligned}}
 \end{equation}
-Equations \eqref{eq:preint_bg_rotation}--\eqref{eq:preint_bg_position}
-are the three first-order bias-correction relationships of the
-textbook's (4.27). The rotation correction uses an exponential to
-remain on $\SO(3)$, whereas velocity and position corrections use
-ordinary vector addition. These expressions \emph{define the form}
-of the correction; the computation of the five bias Jacobians is
-reserved for the subsequent derivation.
+All five bias Jacobians are evaluated at the fixed bias linearization
+point. The rotation bias Jacobian $J_{\Delta\tilde R,b_g}^{ij}$,
+defined using the right-trivialized derivative in
+\eqref{eq:rot_param_J}, maps a gyroscope bias perturbation to a local
+rotation vector in $\R^3$. The remaining four Jacobians, associated
+with the pre-integrated velocity and position, are ordinary Euclidean
+derivatives.
 
+Equations \eqref{eq:preint_bg_rotation}--\eqref{eq:preint_bg_position}
+summarize the three first-order bias-correction relationships in the
+textbook's (4.27). The rotation correction uses the exponential map to
+remain on $\SO(3)$, whereas the velocity and position corrections use
+ordinary vector addition. The five bias Jacobians are derived in the
+following sections.
 
 \subsection{Gyroscope-bias Jacobian: product expansion}
 We now derive the rotation correction corresponding to the textbook's
@@ -625,38 +721,22 @@ Start from the pre-integrated rotation as a function of the bias:
 =\prod_{k=i}^{j-1}\Exp\!\left(
 (\tilde\omega_k-b_{g,i}-\delta b_{g,i})\Delta t_k\right).
 \end{equation}
-For each sample, let $\theta_k=(\tilde\omega_k-b_{g,i})\Delta t_k$,
-so that $J_{r,k}=J_r(\theta_k)$. The right-Jacobian increment formula
+For each sample, the right-Jacobian increment formula
 from BCH yields
 \begin{equation}\label{eq:bias_one_step}
-\Exp(\theta_k-\delta b_{g,i}\Delta t_k)
-\simeq\Exp(\theta_k)\Exp(-J_{r,k}\delta b_{g,i}\Delta t_k).
+\Exp((\tilde\omega_k-b_{g,i}-\delta b_{g,i})\Delta t_k)
+\simeq\Exp((\tilde\omega_k-b_{g,i})\Delta t_k)\Exp(-J_{r,k}\delta b_{g,i}\Delta t_k).
 \end{equation}
-The Jacobian $J_{r,k}$ must be retained because $\theta_k$ is the
+The Jacobian $J_{r,k}$ must be retained because $(\tilde\omega_k-b_{g,i})\Delta t_k$ is the
 nominal increment, not a perturbation that vanishes with $\delta b_{g,i}$.
 
-For two consecutive intervals, write
-$A=\Delta\tilde R_{i,i+1}$, $B=\Delta\tilde R_{i+1,i+2}$,
-$\epsilon_i=-J_{r,i}\delta b_{g,i}\Delta t_i$ and
-$\epsilon_{i+1}=-J_{r,i+1}\delta b_{g,i}\Delta t_{i+1}$.
-Then
-\begin{align}
-\Delta\tilde R_{i,i+2}^{\mathrm{new}}
-&\simeq A\Exp(\epsilon_i)B\Exp(\epsilon_{i+1})\notag\\
-&=AB\Exp(B^T\epsilon_i)\Exp(\epsilon_{i+1})\notag\\
-&\simeq AB\Exp(B^T\epsilon_i+\epsilon_{i+1}).
-\end{align}
-The middle equality uses the exact $\SO(3)$ adjoint identity
-$\Exp(\epsilon)B=B\Exp(B^T\epsilon)$. In the last step, BCH
-would more generally introduce $J_r^{-1}(B^T\epsilon_i)$ multiplying
-$\epsilon_{i+1}$. However, both arguments are first order in
-$\delta b_{g,i}$, so
-\begin{equation}
-J_r^{-1}(B^T\epsilon_i)\epsilon_{i+1}
-=\epsilon_{i+1}+O(\|\delta b_{g,i}\|^2).
-\end{equation}
-Thus, no additional nontrivial Jacobian is required when \emph{combining}
-the small bias corrections to first order.
+As in the earlier rotation-noise derivation, use the exact adjoint
+identity $\Exp(\epsilon)B=B\Exp(B^T\epsilon)$ to move each small
+bias perturbation to the right. First-order BCH then combines these
+perturbations by addition, neglecting their products, which are
+$O(\|\delta b_{g,i}\|^2)$. Thus the perturbation introduced at sample
+$k$ is transported by the subsequent nominal rotation
+$\Delta\tilde R_{k+1,j}^{T}$.
 
 Repeating the same adjoint transport across the remaining increments,
 with $\Delta\tilde R_{jj}=I_3$, gives
@@ -674,10 +754,9 @@ This is the first-order rotation bias correction in the textbook's (4.28).
 Comparing \eqref{eq:bias_rotation_product} with the previously defined
 right-trivialized linearization
 $\Delta\tilde R_{ij}(b+\delta b)\simeq
-\Delta\tilde R_{ij}(b)\Exp(J_{R,b_g}^{ij}\delta b)$ gives
+\Delta\tilde R_{ij}(b)\Exp(\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}\delta b)$ gives
 \begin{equation}\label{eq:bias_rotation_jac_sum}
-\boxed{J_{R,b_g}^{ij}
-\defeq\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}
+\boxed{\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}
 =-\sum_{k=i}^{j-1}\Delta\tilde R_{k+1,j}^{T}
 J_{r,k}\Delta t_k.}
 \end{equation}
@@ -688,7 +767,7 @@ $3\times3$ Jacobian, not an elementwise derivative of a rotation matrix.
 To obtain the textbook's (4.30), separate the last term of
 \eqref{eq:bias_rotation_jac_sum}:
 \begin{align}
-J_{R,b_g}^{ij}
+\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}
 &=-\sum_{k=i}^{j-2}\Delta\tilde R_{k+1,j}^{T}
 J_{r,k}\Delta t_k
 -\Delta\tilde R_{j,j}^{T}J_{r,j-1}\Delta t_{j-1}\notag\\
@@ -705,18 +784,18 @@ For $k\le j-2$, the nominal relative rotations compose as
 \end{equation}
 Substituting and factoring out the final rotation gives
 \begin{align}
-J_{R,b_g}^{ij}
+\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}
 &=\Delta\tilde R_{j-1,j}^{T}
 \left[-\sum_{k=i}^{j-2}\Delta\tilde R_{k+1,j-1}^{T}
 J_{r,k}\Delta t_k\right]-J_{r,j-1}\Delta t_{j-1}\notag\\
 &=\boxed{\Delta\tilde R_{j-1,j}^{T}
-J_{R,b_g}^{i,j-1}-J_{r,j-1}\Delta t_{j-1}}.
+\frac{\partial\Delta\tilde R_{i,j-1}}{\partial b_{g,i}}-J_{r,j-1}\Delta t_{j-1}}.
 \end{align}
 Equivalently, for an incoming IMU interval $[t_k,t_{k+1}]$,
 \begin{equation}\label{eq:bias_rotation_jac_rec}
-\boxed{J_{R,b_g}^{i,k+1}
-=\Delta\tilde R_{k,k+1}^{T}J_{R,b_g}^{ik}
--J_{r,k}\Delta t_k,\qquad J_{R,b_g}^{ii}=0_{3\times3}.}
+\boxed{\frac{\partial\Delta\tilde R_{i,k+1}}{\partial b_{g,i}}
+=\Delta\tilde R_{k,k+1}^{T}\frac{\partial\Delta\tilde R_{ik}}{\partial b_{g,i}}
+-J_{r,k}\Delta t_k,\qquad \frac{\partial\Delta\tilde R_{ii}}{\partial b_{g,i}}=0_{3\times3}.}
 \end{equation}
 The first term transports the previously accumulated Jacobian to the
 new rotation reference, and the second adds the current interval's
@@ -739,8 +818,7 @@ From the measurement definition,
 \end{equation}
 The rotation increment does not depend on accelerometer bias. Thus
 \begin{equation}\label{eq:Jvba_sum}
-\boxed{J_{v,b_a}^{ij}:=
-\frac{\partial\Delta\tilde v_{ij}}{\partial b_{a,i}}
+\boxed{\frac{\partial\Delta\tilde v_{ij}}{\partial b_{a,i}}
 =-\sum_{k=i}^{j-1}\Delta\tilde R_{ik}\Delta t_k.}
 \end{equation}
 
@@ -750,28 +828,27 @@ rotation. Apply the right-trivialized perturbation derived earlier:
 \begin{equation}
 \Delta\tilde R_{ik}(b_{g,i}+\delta b_g)
 \simeq\Delta\tilde R_{ik}
-\Exp(J_{R,b_g}^{ik}\delta b_g).
+\Exp(\frac{\partial\Delta\tilde R_{ik}}{\partial b_{g,i}}\delta b_g).
 \end{equation}
 Keeping only first-order terms,
 \begin{align}
 \Delta\tilde v_{ij}(b_{g,i}+\delta b_g)
 &\simeq\sum_{k=i}^{j-1}
 \Delta\tilde R_{ik}
-\left[I+(J_{R,b_g}^{ik}\delta b_g)^\wedge\right]
+\left[I+(\frac{\partial\Delta\tilde R_{ik}}{\partial b_{g,i}}\delta b_g)^\wedge\right]
 (\tilde a_k-b_{a,i})\Delta t_k\notag\\
 &=\Delta\tilde v_{ij}(b_{g,i})
 -\sum_{k=i}^{j-1}
 \Delta\tilde R_{ik}(\tilde a_k-b_{a,i})^\wedge
-J_{R,b_g}^{ik}\delta b_g\Delta t_k.
+\frac{\partial\Delta\tilde R_{ik}}{\partial b_{g,i}}\delta b_g\Delta t_k.
 \end{align}
 Here $u^\wedge w=-w^\wedge u$. Comparing with the first-order
 Taylor expansion gives
 \begin{equation}\label{eq:Jvbg_sum}
-\boxed{J_{v,b_g}^{ij}:=
-\frac{\partial\Delta\tilde v_{ij}}{\partial b_{g,i}}
+\boxed{\frac{\partial\Delta\tilde v_{ij}}{\partial b_{g,i}}
 =-\sum_{k=i}^{j-1}
 \Delta\tilde R_{ik}(\tilde a_k-b_{a,i})^\wedge
-J_{R,b_g}^{ik}\Delta t_k.}
+\frac{\partial\Delta\tilde R_{ik}}{\partial b_{g,i}}\Delta t_k.}
 \end{equation}
 
 \subsection{Position with respect to accelerometer bias}
@@ -785,10 +862,9 @@ Recall
 \end{equation}
 Differentiate both terms. The rotation has no dependence on $b_{a,i}$:
 \begin{equation}\label{eq:Jpba_sum}
-\boxed{J_{p,b_a}^{ij}:=
-\frac{\partial\Delta\tilde p_{ij}}{\partial b_{a,i}}
+\boxed{\frac{\partial\Delta\tilde p_{ij}}{\partial b_{a,i}}
 =\sum_{k=i}^{j-1}
-\left[J_{v,b_a}^{ik}\Delta t_k
+\left[\frac{\partial\Delta\tilde v_{ik}}{\partial b_{a,i}}\Delta t_k
 -\frac12\Delta\tilde R_{ik}\Delta t_k^2\right].}
 \end{equation}
 
@@ -799,34 +875,33 @@ $\Delta\tilde R_{ik}$ in the acceleration contribution.
 Under $b_{g,i}\mapsto b_{g,i}+\delta b_g$, insert
 \begin{align}
 \Delta\tilde v_{ik}(b_{g,i}+\delta b_g)
-&\simeq\Delta\tilde v_{ik}+J_{v,b_g}^{ik}\delta b_g,\\
+&\simeq\Delta\tilde v_{ik}+\frac{\partial\Delta\tilde v_{ik}}{\partial b_{g,i}}\delta b_g,\\
 \Delta\tilde R_{ik}(b_{g,i}+\delta b_g)
 &\simeq\Delta\tilde R_{ik}
-\left[I+(J_{R,b_g}^{ik}\delta b_g)^\wedge\right].
+\left[I+(\frac{\partial\Delta\tilde R_{ik}}{\partial b_{g,i}}\delta b_g)^\wedge\right].
 \end{align}
 After collecting the terms linear in $\delta b_g$,
 \begin{align}
 \Delta\tilde p_{ij}(b_{g,i}+\delta b_g)
 &\simeq\Delta\tilde p_{ij}(b_{g,i})\notag\\
 &\quad+\sum_{k=i}^{j-1}\left[
-J_{v,b_g}^{ik}\Delta t_k
+\frac{\partial\Delta\tilde v_{ik}}{\partial b_{g,i}}\Delta t_k
 -\frac12\Delta\tilde R_{ik}
 (\tilde a_k-b_{a,i})^\wedge
-J_{R,b_g}^{ik}\Delta t_k^2
+\frac{\partial\Delta\tilde R_{ik}}{\partial b_{g,i}}\Delta t_k^2
 \right]\delta b_g.
 \end{align}
 Therefore,
 \begin{equation}\label{eq:Jpbg_sum}
-\boxed{\begin{gathered}
-J_{p,b_g}^{ij}:=
-\frac{\partial\Delta\tilde p_{ij}}{\partial b_{g,i}}\\
-=\sum_{k=i}^{j-1}\left[
-J_{v,b_g}^{ik}\Delta t_k
--\frac12\Delta\tilde R_{ik}
-(\tilde a_k-b_{a,i})^\wedge
-J_{R,b_g}^{ik}\Delta t_k^2
-\right].
-\end{gathered}}
+\begingroup\small
+\boxed{\displaystyle
+\frac{\partial\Delta\tilde p_{ij}}{\partial b_{g,i}}
+=\sum_{k=i}^{j-1}\!\left[
+\frac{\partial\Delta\tilde v_{ik}}{\partial b_{g,i}}\Delta t_k
+-\frac12\Delta\tilde R_{ik}(\tilde a_k-b_{a,i})^\wedge
+\frac{\partial\Delta\tilde R_{ik}}{\partial b_{g,i}}\Delta t_k^2
+\right].}
+\endgroup
 \end{equation}
 
 \section{Recursive Forms of the Five Bias Jacobians}
@@ -834,25 +909,25 @@ For a new IMU interval $[t_k,t_{k+1}]$, split the last term
 from each sum. The rotation Jacobian has already been derived.
 The complete set of recursions is
 \begin{align}
-J_{R,b_g}^{i,k+1}
-&=\Delta\tilde R_{k,k+1}^{T}J_{R,b_g}^{ik}
+\frac{\partial\Delta\tilde R_{i,k+1}}{\partial b_{g,i}}
+&=\Delta\tilde R_{k,k+1}^{T}\frac{\partial\Delta\tilde R_{ik}}{\partial b_{g,i}}
 -J_{r,k}\Delta t_k,\label{eq:recRbg}\\
-J_{v,b_a}^{i,k+1}
-&=J_{v,b_a}^{ik}-\Delta\tilde R_{ik}\Delta t_k,
+\frac{\partial\Delta\tilde v_{i,k+1}}{\partial b_{a,i}}
+&=\frac{\partial\Delta\tilde v_{ik}}{\partial b_{a,i}}-\Delta\tilde R_{ik}\Delta t_k,
 \label{eq:recVba}\\
-J_{v,b_g}^{i,k+1}
-&=J_{v,b_g}^{ik}
+\frac{\partial\Delta\tilde v_{i,k+1}}{\partial b_{g,i}}
+&=\frac{\partial\Delta\tilde v_{ik}}{\partial b_{g,i}}
 -\Delta\tilde R_{ik}(\tilde a_k-b_{a,i})^\wedge
-J_{R,b_g}^{ik}\Delta t_k,\label{eq:recVbg}\\
-J_{p,b_a}^{i,k+1}
-&=J_{p,b_a}^{ik}+J_{v,b_a}^{ik}\Delta t_k
+\frac{\partial\Delta\tilde R_{ik}}{\partial b_{g,i}}\Delta t_k,\label{eq:recVbg}\\
+\frac{\partial\Delta\tilde p_{i,k+1}}{\partial b_{a,i}}
+&=\frac{\partial\Delta\tilde p_{ik}}{\partial b_{a,i}}+\frac{\partial\Delta\tilde v_{ik}}{\partial b_{a,i}}\Delta t_k
 -\frac12\Delta\tilde R_{ik}\Delta t_k^2,
 \label{eq:recPba}\\
-J_{p,b_g}^{i,k+1}
-&=J_{p,b_g}^{ik}+J_{v,b_g}^{ik}\Delta t_k\notag\\
+\frac{\partial\Delta\tilde p_{i,k+1}}{\partial b_{g,i}}
+&=\frac{\partial\Delta\tilde p_{ik}}{\partial b_{g,i}}+\frac{\partial\Delta\tilde v_{ik}}{\partial b_{g,i}}\Delta t_k\notag\\
 &\quad-\frac12\Delta\tilde R_{ik}
 (\tilde a_k-b_{a,i})^\wedge
-J_{R,b_g}^{ik}\Delta t_k^2.
+\frac{\partial\Delta\tilde R_{ik}}{\partial b_{g,i}}\Delta t_k^2.
 \label{eq:recPbg}
 \end{align}
 All five Jacobians are initially zero at $k=i$.
@@ -864,12 +939,17 @@ rotation Jacobian, or cache all old quantities.
 
 \subsection{Summary}
 The rotation bias Jacobian is a right-trivialized $\SO(3)$
-derivative; the other four Jacobians are ordinary Euclidean
-derivatives. Equations \eqref{eq:recRbg}--\eqref{eq:recPbg}
-allow the five bias sensitivities to be accumulated alongside
-the pre-integrated measurements and covariance. These notes stop
-at the textbook's (4.34); graph-optimization residual Jacobians
-are deferred.
+derivative, whereas the other four bias Jacobians are ordinary
+Euclidean derivatives. Equations \eqref{eq:recRbg}--\eqref{eq:recPbg}
+provide recursive updates for the sensitivities of the pre-integrated
+rotation, velocity, and position measurements with respect to the
+gyroscope and accelerometer biases.
+
+These Jacobians enable efficient first-order bias correction without
+re-integrating the original IMU measurements whenever the bias estimates
+change during graph optimization. Together with the pre-integrated
+measurements and their covariance, they provide the information needed
+to construct the IMU pre-integration factor in the following section.
 
 \section{Pre-integration Factor in Graph Optimization}
 \subsection{Purpose and keyframe states}
@@ -924,6 +1004,66 @@ This is the standard weighted least-squares interpretation of the
 textbook's residual and covariance; the section primarily defines
 the residuals and factor connectivity.
 
+
+\subsection{States, measurements, and residuals}
+These are three distinct mathematical objects. The keyframe states
+$x_i,x_j$ are unknown optimization variables (15 degrees of freedom
+per keyframe). The pre-integrated IMU measurements
+$(\Delta\tilde R_{ij},\Delta\tilde v_{ij},\Delta\tilde p_{ij})$
+are obtained from IMU samples at a fixed bias linearization point;
+they have nine local degrees of freedom, but are \emph{not} navigation
+states being optimized. The measurement residual
+$r_{ij}^{\mathrm{IMU}}\in\mathbb R^9$ compares the motion predicted
+from the current keyframe states with these measurements.
+
+A factor-graph connection means that a residual \emph{depends on}
+a state variable; it does not imply that the IMU directly measures
+that variable. The dependencies, including first-order bias
+correction, are
+\begin{align*}
+ r_{\Delta R_{ij}}&=r_{\Delta R_{ij}}(R_i,R_j,b_{g,i}),\\
+ r_{\Delta v_{ij}}&=r_{\Delta v_{ij}}(R_i,v_i,v_j,b_{g,i},b_{a,i}),\\
+ r_{\Delta p_{ij}}&=r_{\Delta p_{ij}}(R_i,p_i,p_j,v_i,b_{g,i},b_{a,i}).
+\end{align*}
+The endpoint biases $b_{a,j},b_{g,j}$ do not enter this nine-dimensional
+pre-integration residual. Instead, separate bias random-walk factors
+constrain their changes, for example
+\begin{equation}
+ r_{b_a}=b_{a,j}-b_{a,i},\qquad
+ r_{b_g}=b_{g,j}-b_{g,i}.
+\end{equation}
+These two factors each have three residual components.
+
+\subsection{Jacobian dependency matrix}
+The rows below represent \emph{measurement residuals}, not
+pre-integrated measurements; the columns represent local perturbations
+of optimization states. A check mark indicates a generally nonzero
+$3\times3$ Jacobian block. A dash denotes a zero block.
+\begin{center}
+\begingroup\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.25}
+\resizebox{\textwidth}{!}{$
+\begin{array}{c|cccccccccc}
+ &\phi_i&\delta p_i&\delta v_i&\delta b_{a,i}&\delta b_{g,i}
+ &\phi_j&\delta p_j&\delta v_j&\delta b_{a,j}&\delta b_{g,j}\\\hline
+ r_{\Delta R_{ij}}&\checkmark&-&-&-&\checkmark&\checkmark&-&-&-&-\\
+ r_{\Delta v_{ij}}&\checkmark&-&\checkmark&\checkmark&\checkmark&-&-&\checkmark&-&-\\
+ r_{\Delta p_{ij}}&\checkmark&\checkmark&\checkmark&\checkmark&\checkmark&-&\checkmark&-&-&-
+\end{array}$}
+\endgroup
+\end{center}
+Here $R_i'=R_i\Exp(\phi_i)$ and $R_j'=R_j\Exp(\phi_j)$.
+For the complete two-keyframe local perturbation vector
+$\delta X_{ij}\in\mathbb R^{30}$, the residual Jacobian is
+\begin{equation}
+ J_{\mathrm{pre}}=\frac{\partial r_{ij}^{\mathrm{IMU}}}
+ {\partial\delta X_{ij}}\in\mathbb R^{9\times30}.
+\end{equation}
+The final two bias columns are zero. Restricting to the eight
+three-dimensional state blocks on which the pre-integration residual
+depends gives a $9\times24$ Jacobian. Its assembled block form is
+recorded in the Appendix; the main text develops the individual
+Jacobian blocks directly from the residual definitions.
+
 \subsection{Dependence on the IMU biases}
 Although the residual expressions explicitly display only the
 rotation, position and velocity states, their pre-integrated
@@ -960,9 +1100,8 @@ The conceptual progression is
 \;\longrightarrow\;r_{ij}^{\mathrm{IMU}}
 \;\longrightarrow\;\text{IMU factor}.}
 \]
-The next step is to compute the residual Jacobians with respect to
-the graph's optimization variables. Those derivations are not
-included here.
+The following sections compute the residual Jacobians with respect to
+the graph's optimization variables.
 
 
 \section{Jacobians of Preintegration Residuals}
@@ -1060,91 +1199,121 @@ textbook's (4.37)--(4.38). The following sections extend these results to the bi
 
 \section{Remaining IMU-Factor Residual Jacobians}
 \subsection{Rotation residual with respect to gyroscope bias}
-Let $b_{g,i}^{0}$ be the bias at which the pre-integrated measurements
-were originally computed. At the current optimization iterate, write
-$b_{g,i}=b_{g,i}^{0}+\delta b_g$. Introduce an additional infinitesimal
-perturbation $\epsilon_g$ solely to differentiate the residual.
-The previously computed right-trivialized pre-integration Jacobian is
+Let $b_{g,i}$ denote the original bias linearization point.
+The optimizer has already applied the correction $\delta b_{g,i}$,
+so its current bias estimate is
 \begin{equation}
-J_{R,b_g}=\left.\frac{\partial}{\partial\epsilon_g}
-\Log\!\left(\Delta\tilde R_{ij}(b_{g,i}^{0})^T
-\Delta\tilde R_{ij}(b_{g,i}^{0}+\epsilon_g)\right)
-\right|_{\epsilon_g=0}.
+b_g'=b_{g,i}+\delta b_{g,i}.
 \end{equation}
-The first-order bias-corrected rotation measurement is
+To compute the residual Jacobian, we perturb this \emph{current}
+estimate by an additional infinitesimal increment $\epsilon_g$:
 \begin{equation}
-\Delta\tilde R'_{ij}=\Delta\tilde R_{ij}
-\Exp(J_{R,b_g}\delta b_g).
+b_g''=b_g'+\epsilon_g
+=b_{g,i}+\delta b_{g,i}+\epsilon_g.
 \end{equation}
-For clarity, set $u=J_{R,b_g}\delta b_g$ and
-$J_{r,b}=J_r(u)$. By the right-Jacobian BCH identity,
+The important distinction is that the original pre-integration
+and its bias Jacobian $\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}$ were calculated at $b_{g,i}$.
+We do \emph{not} recompute either of them at $b_g'$.
+Instead, we differentiate the first-order bias-correction model
+constructed at the original linearization point.
+Retain $\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}$ as defined earlier and set
+\begin{equation}
+J_{r,b}\defeq J_r\bigl(\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}\delta b_{g,i}\bigr).
+\end{equation}
+The currently corrected measurement and residual are
 \begin{align}
-\Delta\tilde R_{ij}(b_{g,i}^{0}+\delta b_g+\epsilon_g)
-&\simeq\Delta\tilde R_{ij}\Exp(u+J_{R,b_g}\epsilon_g)\notag\\
-&\simeq\Delta\tilde R'_{ij}
-\Exp(J_{r,b}J_{R,b_g}\epsilon_g).
+\Delta\tilde R'_{ij}&=\Delta\tilde R_{ij}
+\Exp(\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}\delta b_{g,i}),\\
+r'_{\Delta R_{ij}}&=\Log\bigl((\Delta\tilde R'_{ij})^TR_i^TR_j\bigr).
 \end{align}
-Write $Q=R_i^TR_j$ and
-$r'=\Log((\Delta\tilde R'_{ij})^TQ)$. Substitution into the
-rotation residual gives
+Although $\epsilon_g$ perturbs the current estimate $b_g'$,
+the fixed-linearization correction model still expands the total
+bias offset $\delta b_{g,i}+\epsilon_g$ around $b_{g,i}$:
 \begin{align}
-r(\epsilon_g)
+\Delta\tilde R_{ij}(b_g' + \epsilon_g)
+&\simeq\Delta\tilde R_{ij}(b_{g,i})
+\Exp\bigl(\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}(\delta b_{g,i}+\epsilon_g)\bigr).
+\end{align}
+Now use the first-order BCH formula with
+$\phi=\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}\delta b_{g,i}$ and
+$\delta\phi=\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}\epsilon_g$ to separate the new perturbation:
+\begin{align}
+&\Delta\tilde R_{ij}(b_{g,i}+\delta b_{g,i}+\epsilon_g)\notag\\
+&\quad\simeq\Delta\tilde R_{ij}
+\Exp\bigl(\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}(\delta b_{g,i}+\epsilon_g)\bigr)\notag\\
+&\quad\simeq\Delta\tilde R'_{ij}
+\Exp(J_{r,b}\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}\epsilon_g).
+\end{align}
+Here $J_{r,b}=J_r(\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}\delta b_{g,i})$ is the right
+Jacobian of the \emph{bias-induced rotation correction}.
+The resulting local sensitivity $J_{r,b}\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}$ is the
+derivative of the \emph{fixed first-order correction model} at
+the current correction $\delta b_{g,i}$. It need not equal the
+Jacobian obtained by recomputing the original IMU pre-integration
+at $b_g'$; the latter would account for higher-order bias dependence.
+
+Substitute this into the rotation residual and use
+$(AB)^T=B^TA^T$:
+\begin{align}
+r_{\Delta R_{ij}}(\epsilon_g)
 &\simeq\Log\!\left(
-\Exp(-J_{r,b}J_{R,b_g}\epsilon_g)
-(\Delta\tilde R'_{ij})^TQ\right)\notag\\
-&=\Log\!\left(\Exp(-J_{r,b}J_{R,b_g}\epsilon_g)
-\Exp(r')\right)\notag\\
-&=\Log\!\left(\Exp(r')
-\Exp(-\Exp(r')^TJ_{r,b}J_{R,b_g}\epsilon_g)\right)\notag\\
-&\simeq r'-J_r^{-1}(r')\Exp(r')^T
-J_{r,b}J_{R,b_g}\epsilon_g.
+\Exp(-J_{r,b}\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}\epsilon_g)
+(\Delta\tilde R'_{ij})^TR_i^TR_j\right)\notag\\
+&=\Log\!\left(\Exp(-J_{r,b}\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}\epsilon_g)
+\Exp(r'_{\Delta R_{ij}})\right)\notag\\
+&=\Log\!\left(\Exp(r'_{\Delta R_{ij}})
+\Exp\bigl(-\Exp(r'_{\Delta R_{ij}})^T
+J_{r,b}\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}\epsilon_g\bigr)\right)\notag\\
+&\simeq r'_{\Delta R_{ij}}
+-J_r^{-1}(r'_{\Delta R_{ij}})
+\Exp(r'_{\Delta R_{ij}})^T
+J_{r,b}\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}\epsilon_g.
 \end{align}
-The third line is the exact $\SO(3)$ adjoint identity; the last
-line is the first-order right-BCH formula. Therefore,
+The third line uses the exact $\SO(3)$ adjoint identity;
+the last line uses the first-order right-BCH formula. Thus
 \begin{equation}\label{eq:JresBg}
 \boxed{\frac{\partial r_{\Delta R_{ij}}}{\partial\epsilon_g}
-=-J_r^{-1}(r')\Exp(r')^TJ_{r,b}J_{R,b_g}.}
+=-J_r^{-1}(r'_{\Delta R_{ij}})
+\Exp(r'_{\Delta R_{ij}})^TJ_{r,b}\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}.}
 \end{equation}
-The expression is the Jacobian of the \emph{bias-corrected residual}
-at the current iterate. If $\delta b_g=0$, then $J_{r,b}=I_3$.
 
 \subsection{Velocity residual Jacobians}
-Define the state-predicted relative velocity
+Recall the velocity residual directly, without introducing an
+additional shorthand for the state-predicted velocity:
 \begin{equation}
-q_v\defeq R_i^T(v_j-v_i-g\Delta t_{ij}),\qquad
-r_{\Delta v_{ij}}=q_v-\Delta\tilde v_{ij}.
+r_{\Delta v_{ij}}=R_i^T(v_j-v_i-g\Delta t_{ij})-\Delta\tilde v_{ij}.
 \end{equation}
-At fixed pre-integrated measurement and fixed other states,
+Its Euclidean derivatives are
 \begin{equation}
 \boxed{\frac{\partial r_{\Delta v_{ij}}}{\partial v_i}=-R_i^T,
 \qquad\frac{\partial r_{\Delta v_{ij}}}{\partial v_j}=R_i^T.}
 \end{equation}
-For a right perturbation $R_i'=R_i\Exp(\phi_i)$,
+Using the right rotation perturbation $R_i'=R_i\Exp(\phi_i)$,
 \begin{align}
 r_{\Delta v_{ij}}(R_i')
-&=\Exp(-\phi_i)q_v-\Delta\tilde v_{ij}\notag\\
-&\simeq(I_3-\phi_i^\wedge)q_v-\Delta\tilde v_{ij}\notag\\
-&=r_{\Delta v_{ij}}+q_v^\wedge\phi_i.
+&=\Exp(-\phi_i)R_i^T(v_j-v_i-g\Delta t_{ij})
+-\Delta\tilde v_{ij}\notag\\
+&\simeq r_{\Delta v_{ij}}+
+\bigl[R_i^T(v_j-v_i-g\Delta t_{ij})\bigr]^\wedge\phi_i.
 \end{align}
 Consequently,
 \begin{equation}\label{eq:JresVphi}
-\boxed{\frac{\partial r_{\Delta v_{ij}}}{\partial\phi_i}=q_v^\wedge.}
+\boxed{\frac{\partial r_{\Delta v_{ij}}}{\partial\phi_i}
+=\bigl[R_i^T(v_j-v_i-g\Delta t_{ij})\bigr]^\wedge.}
 \end{equation}
-Because the measurement is subtracted, its two bias Jacobians
-enter with negative signs:
+Since the pre-integrated measurement is subtracted, its bias
+Jacobians enter with negative signs:
 \begin{equation}
 \frac{\partial r_{\Delta v_{ij}}}{\partial b_{g,i}}
-=-J_{v,b_g}^{ij},\qquad
+=-\frac{\partial\Delta\tilde v_{ij}}{\partial b_{g,i}},\qquad
 \frac{\partial r_{\Delta v_{ij}}}{\partial b_{a,i}}
-=-J_{v,b_a}^{ij}.
+=-\frac{\partial\Delta\tilde v_{ij}}{\partial b_{a,i}}.
 \end{equation}
 
 \subsection{Position residual Jacobians}
-Let
+The position residual is
 \begin{equation}
-q_p\defeq R_i^T\left(p_j-p_i-v_i\Delta t_{ij}
--\tfrac12g\Delta t_{ij}^2\right),\qquad
-r_{\Delta p_{ij}}=q_p-\Delta\tilde p_{ij}.
+r_{\Delta p_{ij}}=R_i^T\left(p_j-p_i-v_i\Delta t_{ij}-\tfrac12g\Delta t_{ij}^2\right)-\Delta\tilde p_{ij}.
 \end{equation}
 The Euclidean derivatives are
 \begin{align}
@@ -1152,35 +1321,226 @@ The Euclidean derivatives are
 \frac{\partial r_{\Delta p_{ij}}}{\partial p_j}&=R_i^T,&
 \frac{\partial r_{\Delta p_{ij}}}{\partial v_i}&=-R_i^T\Delta t_{ij}.
 \end{align}
-Under $R_i'=R_i\Exp(\phi_i)$, the same first-order expansion gives
+With $R_i'=R_i\Exp(\phi_i)$,
 \begin{align}
 r_{\Delta p_{ij}}(R_i')
-&=\Exp(-\phi_i)q_p-\Delta\tilde p_{ij}\notag\\
-&\simeq r_{\Delta p_{ij}}+q_p^\wedge\phi_i,
+&=\Exp(-\phi_i)R_i^T\left(p_j-p_i-v_i\Delta t_{ij}
+-\tfrac12g\Delta t_{ij}^2\right)
+-\Delta\tilde p_{ij}\notag\\
+&\simeq r_{\Delta p_{ij}}+
+\left[R_i^T\left(p_j-p_i-v_i\Delta t_{ij}
+-\tfrac12g\Delta t_{ij}^2\right)\right]^\wedge\phi_i.
 \end{align}
-so
+Therefore,
 \begin{equation}\label{eq:JresPphi}
-\boxed{\frac{\partial r_{\Delta p_{ij}}}{\partial\phi_i}=q_p^\wedge.}
+\boxed{\frac{\partial r_{\Delta p_{ij}}}{\partial\phi_i}
+=\left[R_i^T\left(p_j-p_i-v_i\Delta t_{ij}
+-\tfrac12g\Delta t_{ij}^2\right)\right]^\wedge.}
 \end{equation}
-Again the bias dependence enters through the pre-integrated
-measurement:
+The bias derivatives are
 \begin{equation}
 \frac{\partial r_{\Delta p_{ij}}}{\partial b_{g,i}}
-=-J_{p,b_g}^{ij},\qquad
+=-\frac{\partial\Delta\tilde p_{ij}}{\partial b_{g,i}},\qquad
 \frac{\partial r_{\Delta p_{ij}}}{\partial b_{a,i}}
-=-J_{p,b_a}^{ij}.
+=-\frac{\partial\Delta\tilde p_{ij}}{\partial b_{a,i}}.
 \end{equation}
 
+\section{Implementation Overview}
+This section briefly connects the mathematical pre-integration model
+with the graph-optimization implementation. It introduces no new
+measurement model or Jacobian derivation.
+
+\begin{enumerate}
+  \item \textbf{Integrate IMU measurements.} For each IMU interval,
+  accumulate $\Delta\tilde R_{ij}$, $\Delta\tilde v_{ij}$, and
+  $\Delta\tilde p_{ij}$ using the fixed bias linearization point.
+  \item \textbf{Propagate uncertainty and bias sensitivities.}
+  Update the pre-integration covariance $\Sigma_{ij}$ and the five
+  bias Jacobians alongside the accumulated measurements.
+  \item \textbf{Construct the IMU factor.} Between keyframes $i$ and $j$,
+  evaluate the nine-dimensional residual
+  $r_{\mathrm{pre}}=(r_{\Delta R_{ij}}^T,
+  r_{\Delta v_{ij}}^T,r_{\Delta p_{ij}}^T)^T$ and use
+  $\Sigma_{ij}^{-1}$ as its information matrix, when invertible.
+  Bias random-walk factors separately constrain the endpoint biases.
+  \item \textbf{Optimize the navigation states.} Combine the IMU
+  factor with any available additional observation factors and
+  optimize the keyframe states using residuals and their Jacobians.
+  Changes in the bias estimate are handled with the first-order
+  bias correction model (or re-integration when necessary).
+\end{enumerate}
+
+In short, IMU pre-integration produces a \emph{relative-motion
+measurement and its uncertainty}; the graph optimizer estimates the
+\emph{navigation states}. This distinction parallels the separation
+between propagation and measurement update in ESKF, although the
+optimization mechanism is different.
+
+
+\section{Conceptual Summary: From IMU Measurements to Graph Optimization}
+\label{sec:conceptual_summary}
+The main goal of IMU pre-integration is to compress many high-rate IMU
+samples between two keyframes into one relative-motion constraint for
+graph optimization. The pre-integration computation, measurement model,
+and residual are not three separate estimation algorithms: they are
+three connected stages of the same construction.
+
+\subsection{Three distinct objects}
+\begin{description}[leftmargin=2.6cm,style=nextline]
+\item[Pre-integration computation]
+Accumulates the IMU readings into
+$\Delta\tilde R_{ij}$, $\Delta\tilde v_{ij}$, and $\Delta\tilde p_{ij}$.
+These are measurements, not optimized navigation states.
+\item[Measurement model]
+Relates those accumulated measurements to the navigation states at
+keyframes $i$ and $j$, including the effects of gravity and noise.
+\item[Residual]
+Measures the disagreement between the relative motion predicted by
+the current navigation states and the pre-integrated measurements.
+\end{description}
+
+\subsection{Step 1: accumulate relative-motion measurements}
+For each IMU sample $k$, the pre-integration recursively updates
+$\Delta\tilde R_{i,k+1}$, $\Delta\tilde v_{i,k+1}$, and
+$\Delta\tilde p_{i,k+1}$. For example,
+\begin{equation}
+\Delta\tilde R_{ij}=\prod_{k=i}^{j-1}
+\Exp\bigl((\tilde\omega_k-b_{g,i})\Delta t_k\bigr).
+\end{equation}
+The corresponding velocity increment is
+\begin{equation}
+\Delta\tilde v_{ij}=\sum_{k=i}^{j-1}
+\Delta\tilde R_{ik}(\tilde a_k-b_{a,i})\Delta t_k.
+\end{equation}
+The position increment is accumulated recursively using the preceding
+velocity increment and the measured specific force. Crucially, these
+calculations do not require the current world-frame estimates of
+$R_i$, $p_i$, or $v_i$. Thus changing those state estimates during
+optimization does not require re-integrating the raw IMU samples.
+
+\subsection{Step 2: relate measurements to keyframe states}
+The optimization variables at a keyframe are
+\begin{equation}
+x_k=(R_k,p_k,v_k,b_{a,k},b_{g,k}).
+\end{equation}
+The pre-integration measurement model provides the bridge between the
+accumulated IMU quantities and these unknown states:
+\begin{subequations}\label{eq:concept_measurement_model}
+\begin{align}
+\Delta\tilde R_{ij}
+&\simeq R_i^TR_j\Exp(\delta\phi_{ij}),\\
+\Delta\tilde v_{ij}
+&=R_i^T(v_j-v_i-g\Delta t_{ij})+\delta v_{ij},\\
+\Delta\tilde p_{ij}
+&=R_i^T\!\left(p_j-p_i-v_i\Delta t_{ij}
+-\tfrac12g\Delta t_{ij}^2\right)+\delta p_{ij}.
+\end{align}
+\end{subequations}
+Here $\delta\phi_{ij}$, $\delta v_{ij}$, and $\delta p_{ij}$
+are accumulated \emph{measurement-noise perturbations}, not optimization
+increments applied to the keyframe states.
+
+\subsection{Step 3: construct a residual}
+The optimizer evaluates how well its current state estimates satisfy
+the IMU measurement model. Using the residual convention in this chapter,
+\begin{subequations}\label{eq:concept_residuals}
+\begin{align}
+r_{\Delta R_{ij}}
+&=\Log\!\left(\Delta\tilde R_{ij}^TR_i^TR_j\right),\\
+r_{\Delta v_{ij}}
+&=R_i^T(v_j-v_i-g\Delta t_{ij})-\Delta\tilde v_{ij},\\
+r_{\Delta p_{ij}}
+&=R_i^T\!\left(p_j-p_i-v_i\Delta t_{ij}
+-\tfrac12g\Delta t_{ij}^2\right)-\Delta\tilde p_{ij}.
+\end{align}
+\end{subequations}
+Stacking these three three-dimensional residuals gives
+\begin{equation}
+r_{\mathrm{pre}}=
+\begin{bmatrix}r_{\Delta R_{ij}}\\r_{\Delta v_{ij}}\\r_{\Delta p_{ij}}\end{bmatrix}
+\in\R^9.
+\end{equation}
+For example, if the IMU-derived velocity increment is
+$\Delta\tilde v_{ij}=(2,0,0)^T\,\mathrm{m/s}$ but the current states
+predict $(1,0,0)^T\,\mathrm{m/s}$ (with $R_i=I$ and gravity removed),
+then $r_{\Delta v_{ij}}=(-1,0,0)^T\,\mathrm{m/s}$. The optimizer
+adjusts the states to reduce this discrepancy while satisfying other
+measurement factors.
+
+\subsection{Why covariance and bias Jacobians are needed}
+\textbf{Pre-integration covariance.} IMU measurement noise accumulates
+through the same integration process. Its first-order propagation is
+\begin{equation}
+\eta_{i,k+1}=A_k\eta_{ik}+B_k\eta_{d,k},\qquad
+\Sigma_{i,k+1}=A_k\Sigma_{ik}A_k^T+B_kQ_{d,k}B_k^T.
+\end{equation}
+The resulting $\Sigma_{ij}\in\R^{9\times9}$ describes the
+uncertainty of the relative-motion measurement, \emph{not} the
+covariance of the optimized keyframe states. It supplies the
+information matrix $\Omega_{ij}=\Sigma_{ij}^{-1}$ (when invertible)
+for the weighted residual cost
+\begin{equation}
+E_{\mathrm{IMU}}=r_{\mathrm{pre}}^T\Omega_{ij}r_{\mathrm{pre}}.
+\end{equation}
+
+\textbf{Bias Jacobians.} Pre-integration uses fixed gyroscope and
+accelerometer bias linearization values $b_{g,i}$ and $b_{a,i}$.
+Because the graph optimizer also estimates the biases, changes in
+these values alter the accumulated measurements. The five bias
+Jacobians provide a first-order correction without re-integrating
+every IMU sample at each iteration; sufficiently large changes may
+still require re-integration.
+
+\textbf{Residual Jacobians.} These are different from both the noise
+propagation matrices and the bias-correction Jacobians: they describe
+how $r_{\mathrm{pre}}$ changes when the \emph{optimization states} are
+perturbed, and are used to construct the graph optimizer's linearized
+least-squares system.
+
+\subsection{The complete picture and comparison with ESKF}
+\begin{center}
+\fbox{\begin{minipage}{0.88\linewidth}
+\centering
+Raw IMU samples $\tilde\omega_k,\tilde a_k$\\[3pt]
+$\Downarrow$\\[3pt]
+Pre-integrated increments $\Delta\tilde R_{ij},\Delta\tilde v_{ij},\Delta\tilde p_{ij}$\\
+Covariance $\Sigma_{ij}$ and five bias Jacobians\\[3pt]
+$\Downarrow$\\[3pt]
+Measurement model relating increments to $x_i,x_j$\\[3pt]
+$\Downarrow$\\[3pt]
+IMU factor residual $r_{\mathrm{pre}}\in\R^9$\\[3pt]
+$\Downarrow$\\[3pt]
+Graph optimization (IMU and other sensor factors)\\[3pt]
+$\Downarrow$\\[3pt]
+Optimized navigation states and biases
+\end{minipage}}
+\end{center}
+
+In Chapter 3, ESKF uses IMU readings to propagate a navigation-state
+estimate and then incorporates observations through a Kalman update.
+Here, IMU pre-integration instead creates a relative-motion
+\emph{measurement factor}; graph optimization adjusts the keyframe
+states jointly to reduce the weighted residuals from IMU and other
+sensors. The underlying IMU kinematics are closely related, but the
+quantities propagated and the way measurements are fused differ.
+
+\noindent\textbf{Four takeaways.}
+Pre-integration computes relative-motion measurements; the measurement
+model relates them to the unknown navigation states; the residual
+quantifies their disagreement; and graph optimization adjusts the
+states to minimize the weighted disagreements.
+
+\appendix
 \section{Complete IMU-Factor Jacobian Matrix}
 Use the residual ordering $(r_{\Delta R},r_{\Delta v},r_{\Delta p})$
 and optimization perturbation ordering
 $(\phi_i,\delta p_i,\delta v_i,\epsilon_g,\epsilon_a,
 \phi_j,\delta p_j,\delta v_j)$.
 Each variable block has three components, so the assembled Jacobian
-has dimensions $9\times24$. For a compact presentation, write
+has dimensions $9\times24$. For the rotation blocks, retain the shorthand
 \begin{equation}
 W\defeq J_r^{-1}(r'),\qquad
-G\defeq-W\Exp(r')^TJ_{r,b}J_{R,b_g}.
+G\defeq-W\Exp(r')^TJ_{r,b}\frac{\partial\Delta\tilde R_{ij}}{\partial b_{g,i}}.
 \end{equation}
 The rotation blocks below use the bias-corrected residual $r'$;
 for the other two residuals the measurement bias Jacobians are
@@ -1193,25 +1553,37 @@ three $3\times24$ block rows to avoid a page-width overflow.
 J_R=\begin{bmatrix}
 -WR_j^TR_i&0&0&G&0&W&0&0
 \end{bmatrix},\\[1mm]
-J_v=\begin{bmatrix}
-q_v^\wedge&0&-R_i^T&-J_{v,b_g}^{ij}&-J_{v,b_a}^{ij}&0&0&R_i^T
-\end{bmatrix},\\[1mm]
-J_p=\begin{bmatrix}
-q_p^\wedge&-R_i^T&-R_i^T\Delta t_{ij}&-J_{p,b_g}^{ij}&-J_{p,b_a}^{ij}&0&R_i^T&0
-\end{bmatrix}.
+J_v=\resizebox{.94\textwidth}{!}{$\begin{bmatrix}
+\bigl[R_i^T(v_j-v_i-g\Delta t_{ij})\bigr]^\wedge&0&-R_i^T&-\frac{\partial\Delta\tilde v_{ij}}{\partial b_{g,i}}&-\frac{\partial\Delta\tilde v_{ij}}{\partial b_{a,i}}&0&0&R_i^T
+\end{bmatrix}$},\\[1mm]
+J_p=\resizebox{.94\textwidth}{!}{$\begin{bmatrix}
+\bigl[R_i^T(p_j-p_i-v_i\Delta t_{ij}-\tfrac12g\Delta t_{ij}^2)\bigr]^\wedge&-R_i^T&-R_i^T\Delta t_{ij}&-\frac{\partial\Delta\tilde p_{ij}}{\partial b_{g,i}}&-\frac{\partial\Delta\tilde p_{ij}}{\partial b_{a,i}}&0&R_i^T&0
+\end{bmatrix}$}.
 \end{gathered}}
 \end{equation}
 Here every displayed block is $3\times3$. The position and
 velocity rows do not directly depend on $R_j$ in this residual
-convention. The Jacobian above is evaluated at the current
-bias-corrected pre-integration; the symbols $J_{v,b_g}^{ij}$,
-$J_{v,b_a}^{ij}$, $J_{p,b_g}^{ij}$, and $J_{p,b_a}^{ij}$
-refer to the stored first-order bias sensitivities.
+convention. The Jacobian above is evaluated at the current bias-corrected pre-integration. The velocity and position bias derivatives denote the stored first-order sensitivities.
 
 \subsection{Scope and next steps}
-The present notes stop at the textbook's position residual
-Jacobians (4.43). The assembled matrix is a convenient grouping
+The present notes stop at the position residual
+Jacobians. The assembled matrix is a convenient grouping
 of the individual Jacobian blocks, rather than a separate equation
 in the textbook. No additional sensor factors are included here.
+
+
+\subsection{Full two-keyframe state ordering}
+The displayed $9\times24$ matrix uses only the eight three-dimensional
+state blocks directly connected to the pre-integration factor.
+For the complete two-keyframe ordering
+\begin{equation}
+ \delta X_{ij}^{\mathrm{full}}=
+ (\phi_i,\delta p_i,\delta v_i,\delta b_{a,i},\delta b_{g,i},
+ \phi_j,\delta p_j,\delta v_j,\delta b_{a,j},\delta b_{g,j}),
+\end{equation}
+the full Jacobian has size $9\times30$. It is obtained by
+reordering the existing blocks to match this ordering and appending
+two zero $9\times3$ blocks for the endpoint biases. Those endpoint
+biases are constrained by the separate bias random-walk factors.
 
 \end{document}
